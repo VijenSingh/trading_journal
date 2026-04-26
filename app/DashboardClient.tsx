@@ -8,7 +8,8 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 // Safe field helpers
 const sp = (v: unknown): string => (typeof v === "string" && v ? v : "");
@@ -34,6 +35,21 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function DashboardClient({ trades, avoided }: { trades: Trade[]; avoided: number[] }) {
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const clearAllData = async () => {
+    setClearing(true);
+    try {
+      const res = await fetch("/api/trades/clear", { method: "DELETE" });
+      const j = await res.json();
+      if (j.success) {
+        alert(`✅ ${j.deleted} trades delete ho gaye! Page refresh karo.`);
+        window.location.reload();
+      }
+    } catch { alert("Error clearing data"); }
+    finally { setClearing(false); setShowClearModal(false); }
+  };
   const a = getAnalytics(trades);
   const cumData = getCumulative(trades);
   const monthStats = getMonthStats(trades).slice(-6);
@@ -56,11 +72,37 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
   return (
     <div className="p-8 page-transition">
       <PageHeader title="Dashboard" subtitle={today}>
+        {trades.length > 0 && (
+          <button onClick={() => setShowClearModal(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-red/10 text-red border border-red/20 rounded-xl text-xs font-semibold hover:bg-red/20 transition-all">
+            <Trash2 size={13} /> Clear Old Data
+          </button>
+        )}
         <Link href="/trade/new">
           <button className="flex items-center gap-2 px-4 py-2 bg-green text-bg-950 rounded-xl text-sm font-semibold hover:brightness-110 transition-all shadow-glow">
             <Plus size={16} /> New Trade
           </button>
         </Link>
+        {showClearModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowClearModal(false)}>
+            <div className="bg-bg-800 border border-red/30 rounded-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+              <div className="text-lg font-bold text-ink-100 mb-2">⚠️ Saara Data Delete Karein?</div>
+              <p className="text-sm text-ink-300 mb-5 leading-relaxed">
+                Ye action <strong className="text-red">undo nahi hoga</strong>. MongoDB se saare {trades.length} trades permanently delete ho jayenge. Sirf karo agar ye test/purana data hai.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={clearAllData} disabled={clearing}
+                  className="flex-1 py-2.5 bg-red text-white rounded-xl text-sm font-bold hover:bg-red/80 transition-all disabled:opacity-50">
+                  {clearing ? "Deleting..." : "Haan, Delete Karo"}
+                </button>
+                <button onClick={() => setShowClearModal(false)}
+                  className="flex-1 py-2.5 bg-bg-700 text-ink-200 rounded-xl text-sm font-semibold hover:bg-bg-600 transition-all">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </PageHeader>
 
       {/* Stats row */}
