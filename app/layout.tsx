@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
+
+import Sidebar from "../components/layout/Sidebar";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
