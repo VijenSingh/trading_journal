@@ -3,12 +3,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, PlusCircle, BookOpen, BarChart3,
-  CalendarDays, Target, BookMarked, Brain, TrendingUp, Download,
+  CalendarDays, Target, BookMarked, Brain, TrendingUp, Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/account", icon: Building2, label: "Performance" },
   { href: "/trade/new", icon: PlusCircle, label: "New Trade" },
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
