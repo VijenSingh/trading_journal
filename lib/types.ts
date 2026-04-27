@@ -54,7 +54,7 @@ export const PAIRS = [
 ];
 
 export const STRATEGIES = [
-  "Structure Break","Order Block","Supply & Demand","Trend Follow",
+  "Structure Break","Order Block","Supply & Demand","Trend Follow","Shivam William Live","Telegram Entry","Youtube Live",
   "Support & Resistance","Scalp","Breakout","Mean Reversion","News Trade","ICT Concepts","Other",
 ];
 
