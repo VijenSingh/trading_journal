@@ -5,12 +5,16 @@ interface Props {
 }
 export default function PageHeader({ title, subtitle, children }: Props) {
   return (
-    <div className="flex items-start justify-between mb-8">
+    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6 md:mb-8">
       <div>
-        <h1 className="text-2xl font-bold text-ink-100 tracking-tight">{title}</h1>
-        {subtitle && <p className="text-sm text-ink-300 mt-1">{subtitle}</p>}
+        <h1 className="text-xl md:text-2xl font-bold text-ink-100 tracking-tight">{title}</h1>
+        {subtitle && <p className="text-xs md:text-sm text-ink-300 mt-1">{subtitle}</p>}
       </div>
-      {children && <div className="flex items-center gap-3">{children}</div>}
+      {children && (
+        <div className="flex flex-wrap items-center gap-2 md:gap-3 flex-shrink-0">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

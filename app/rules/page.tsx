@@ -18,13 +18,13 @@ const Section = ({ title, emoji, children }: { title: string; emoji: string; chi
       <span className="text-lg">{emoji}</span>
       <h2 className="text-sm font-semibold text-ink-200 uppercase tracking-widest">{title}</h2>
     </div>
-    <div className="grid grid-cols-2 gap-3">{children}</div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
   </div>
 );
 
 export default function RulesPage() {
   return (
-    <div className="p-8 page-transition max-w-4xl">
+    <div className="p-4 md:p-8 page-transition max-w-4xl">
       <PageHeader title="Trading Rules" subtitle="Trading se pehle padho. Ye rules tode = account blow." />
 
       <Card className="p-6 mb-6 border-green/20 bg-green/5">

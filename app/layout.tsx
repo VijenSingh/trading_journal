@@ -6,6 +6,7 @@ import { Toaster } from "react-hot-toast";
 export const metadata: Metadata = {
   title: "TraderMind — Lucid PropFirm Journal",
   description: "Advanced trading journal for consistent profitable trading",
+  viewport: "width=device-width, initial-scale=1",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <div className="flex min-h-screen bg-bg-950">
           <Sidebar />
-          <main className="flex-1 ml-[240px] min-h-screen">
+          {/* Desktop: margin-left for sidebar. Mobile: padding-top for topbar */}
+          <main className="flex-1 md:ml-[240px] pt-14 md:pt-0 min-h-screen w-full overflow-x-hidden">
             {children}
           </main>
         </div>
@@ -29,12 +31,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               fontFamily: "'Inter', sans-serif",
               fontSize: "13px",
             },
-            success: {
-              iconTheme: { primary: "#00E676", secondary: "#05070D" },
-            },
-            error: {
-              iconTheme: { primary: "#FF4560", secondary: "#05070D" },
-            },
+            success: { iconTheme: { primary: "#00E676", secondary: "#05070D" } },
+            error: { iconTheme: { primary: "#FF4560", secondary: "#05070D" } },
           }}
         />
       </body>

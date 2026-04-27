@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
 import { formatPnl, getMonthLabel, cn } from "@/lib/utils";
+import { invalidateTradeData } from "@/lib/useTradeData";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, Badge, EmptyState, Loading, Button } from "@/components/ui";
 import { Trash2, ChevronDown, ChevronUp, Search, Filter } from "lucide-react";
@@ -38,6 +39,7 @@ export default function JournalPage() {
     try {
       await fetch(`/api/trades/${id}`, { method: "DELETE" });
       toast.success("Trade deleted");
+      invalidateTradeData();
       setTrades(prev => prev.filter(t => t._id !== id));
     } catch { toast.error("Delete failed"); }
   };
@@ -52,7 +54,7 @@ export default function JournalPage() {
   );
 
   return (
-    <div className="p-8 page-transition">
+    <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Trade Journal" subtitle={`${trades.length} trades logged`}>
         <Link href="/trade/new">
           <Button variant="primary" size="sm">+ New Trade</Button>
@@ -60,22 +62,22 @@ export default function JournalPage() {
       </PageHeader>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-6 flex-wrap">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6 flex-wrap">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
-          <input className="inp pl-9" style={{width:"220px"}} placeholder="Search trades..."
+          <input className="inp pl-9" style={{width:"100%", maxWidth:"220px"}} placeholder="Search trades..."
             value={search} onChange={e=>setSearch(e.target.value)} />
         </div>
-        <select className="inp" style={{width:"160px"}} value={filterPair} onChange={e=>setFilterPair(e.target.value)}>
+        <select className="inp" style={{minWidth:"120px"}} value={filterPair} onChange={e=>setFilterPair(e.target.value)}>
           <option value="">All Pairs</option>
           {pairs.map(p=><option key={p}>{p}</option>)}
         </select>
-        <select className="inp" style={{width:"140px"}} value={filterResult} onChange={e=>setFilterResult(e.target.value)}>
+        <select className="inp" style={{minWidth:"120px"}} value={filterResult} onChange={e=>setFilterResult(e.target.value)}>
           <option value="">All Trades</option>
           <option value="profit">Profit ✅</option>
           <option value="loss">Loss ❌</option>
         </select>
-        <select className="inp" style={{width:"160px"}} value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}>
+        <select className="inp" style={{minWidth:"120px"}} value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}>
           <option value="">All Months</option>
           {months.map(m=><option key={m} value={m}>{getMonthLabel(m)}</option>)}
         </select>

@@ -71,7 +71,7 @@ export default function MindsetPage() {
   const toggle = (i: number) => setReadAll(prev => prev.includes(i) ? prev.filter(x=>x!==i) : [...prev,i]);
 
   return (
-    <div className="p-8 page-transition max-w-4xl">
+    <div className="p-4 md:p-8 page-transition max-w-4xl">
       <PageHeader title="Trader Mindset" subtitle="Roz subah trading se pehle padho — loud padho. Subconscious mein daalna hai." />
 
       {/* Progress */}
@@ -119,7 +119,7 @@ export default function MindsetPage() {
       {/* Crisis protocols */}
       <div>
         <div className="text-xs font-semibold text-ink-400 uppercase tracking-widest mb-4">🆘 Emergency Protocols — Jab Emotions High Hon</div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {protocols.map(p => {
             const colors: Record<string,string> = {
               red:"border-red/30 bg-red/5",
@@ -152,7 +152,7 @@ export default function MindsetPage() {
       {/* Weekly review */}
       <Card className="p-6 mt-6">
         <div className="text-xs font-semibold text-ink-400 uppercase tracking-widest mb-4">📅 Weekly Review Questions</div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
             "Is week mein kitni mistakes ki? Pattern kya hai?",
             "Kaunsa setup sabse zyada profitable raha?",

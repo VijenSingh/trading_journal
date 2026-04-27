@@ -119,3 +119,39 @@ textarea.inp { resize: vertical; min-height: 80px; line-height: 1.6; }
   background: linear-gradient(90deg, transparent, rgba(0,230,118,0.3), transparent);
   margin: 0;
 }
+
+/* ── Responsive overrides ─────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Reduce card padding on mobile */
+  .stat-card { padding: 14px; }
+  
+  /* Make tables horizontally scrollable */
+  .table-wrap, .overflow-x-auto { 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch;
+  }
+  table { min-width: 560px; }
+
+  /* Reduce chart height on mobile */
+  .recharts-responsive-container { min-height: 160px !important; }
+
+  /* Stack journal filters */
+  .journal-filters { flex-direction: column; }
+  .journal-filters .inp { width: 100% !important; }
+
+  /* Fix modal width */
+  .modal { max-width: calc(100vw - 32px) !important; }
+
+  /* Mistakes grid - single col on very small screens */
+  @media (max-width: 480px) {
+    .mistake-grid { grid-template-columns: 1fr !important; }
+  }
+}
+
+/* ── Mobile form improvements ─────────────────────────────── */
+@media (max-width: 640px) {
+  .inp { font-size: 16px; } /* Prevent iOS zoom on input focus */
+  
+  /* Full-width buttons on mobile */
+  .btn-primary { width: 100%; justify-content: center; }
+}

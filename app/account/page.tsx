@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Trade } from "@/lib/types";
 import { formatPnl, cn } from "@/lib/utils";
+import { useTradeData } from "@/lib/useTradeData";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, Loading, StatCard } from "@/components/ui";
 import {
@@ -184,15 +185,11 @@ export default function AccountPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/analytics", { cache: "no-store" })
-      .then(r => r.json())
-      .then(j => { if (j.success && Array.isArray(j.data)) setTrades(j.data); })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+  const { trades: hookTrades, loading: hookLoading } = useTradeData();
+  useEffect(() => { setTrades(hookTrades); }, [hookTrades]);
+  useEffect(() => { setLoading(hookLoading); }, [hookLoading]);
 
-  if (loading) return <div className="p-8"><Loading /></div>;
+  if (loading) return <div className="p-4 md:p-8"><Loading /></div>;
 
   // ── Build daily P&L map ──────────────────────────────────────────────────
   const dailyMap: Record<string, { pnl: number; trades: number; wins: number }> = {};
@@ -250,11 +247,11 @@ export default function AccountPage() {
   const yPadding = Math.abs(yMax - yMin) * 0.1 || 1000;
 
   return (
-    <div className="p-8 page-transition">
+    <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Performance Overview" subtitle="Trade entries se automatic cumulative P&L aur calendar" />
 
       {/* Top stats */}
-      <div className="grid grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <StatCard
           label="Cumulative P&L"
           value={`${totalPnl >= 0 ? "+" : ""}₹${Math.abs(totalPnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}

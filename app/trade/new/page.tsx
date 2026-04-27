@@ -6,6 +6,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import { Card, Button, Label, Badge } from "@/components/ui";
 import { PAIRS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES } from "@/lib/types";
 import { getToday, getNow, cn } from "@/lib/utils";
+import { invalidateTradeData } from "@/lib/useTradeData";
 import { Save, X, Calculator, CheckCircle2 } from "lucide-react";
 
 const defaultForm = {
@@ -95,6 +96,7 @@ export default function NewTradePage() {
 
       if (!res.ok) throw new Error("Failed");
       toast.success("Trade save ho gaya! ✅");
+      invalidateTradeData();
       setForm({ ...defaultForm, date: getToday(), time: getNow() });
       setSelectedMistakes([]);
       setNoMistakes(false);
@@ -114,7 +116,7 @@ export default function NewTradePage() {
   };
 
   return (
-    <div className="p-8 page-transition max-w-5xl">
+    <div className="p-4 md:p-8 page-transition max-w-5xl">
       <PageHeader title="New Trade" subtitle="Har trade ka detail record rakho — yahi consistency banata hai" />
 
       <form onSubmit={handleSubmit} noValidate>
@@ -124,7 +126,7 @@ export default function NewTradePage() {
             <span className="w-5 h-5 rounded-full bg-green/10 text-green text-[10px] flex items-center justify-center font-mono">1</span>
             Trade Details
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <FormGroup label="Date">
               <input type="date" className="inp" value={form.date} onChange={e => set("date", e.target.value)} />
             </FormGroup>
@@ -181,7 +183,7 @@ export default function NewTradePage() {
               <Calculator size={12} /> Auto-calc RR
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <FormGroup label="Entry Price">
               <input type="number" className="inp" placeholder="e.g. 2345.50" step="0.01"
                 value={form.entry} onChange={e => set("entry", e.target.value)} onBlur={calcRR} />
@@ -225,7 +227,7 @@ export default function NewTradePage() {
             <span className="w-5 h-5 rounded-full bg-amber/10 text-amber text-[10px] flex items-center justify-center font-mono">3</span>
             P&L & Strategy
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormGroup label="P&L (₹ mein) *">
               <input type="number" className="inp" placeholder="+5000 ya -2000" required
                 value={form.pnl} onChange={e => set("pnl", e.target.value)} />
@@ -381,7 +383,7 @@ export default function NewTradePage() {
         </Card>
 
         {/* Submit */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" variant="primary" size="lg" loading={loading} className="min-w-[160px]">
             <Save size={16} /> Trade Save Karo
           </Button>

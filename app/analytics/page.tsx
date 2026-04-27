@@ -1,9 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
 import { getAnalytics, getCumulative, getMistakeFreq, fmt, formatPnl, cn } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading } from "@/components/ui";
+import { useTradeData } from "@/lib/useTradeData";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar,
@@ -26,28 +27,12 @@ const TT = ({ active, payload, label }: any) => {
 };
 
 export default function AnalyticsPage() {
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { trades, loading, error } = useTradeData();
 
-  useEffect(() => {
-    fetch("/api/analytics", { cache: "no-store" })
-      .then(r => r.json())
-      .then(j => {
-        if (j.success && Array.isArray(j.data)) {
-          setTrades(j.data);
-        } else {
-          setError("Data load nahi hua: " + (j.error || "unknown"));
-        }
-      })
-      .catch(e => setError(String(e)))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="p-8"><Loading /></div>;
+  if (loading) return <div className="p-4 md:p-8"><Loading /></div>;
 
   if (error) return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="p-4 bg-red/10 border border-red/30 rounded-xl text-red text-sm">{error}</div>
     </div>
   );
@@ -97,28 +82,28 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="p-8 page-transition">
+    <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Analytics" subtitle={`${trades.length} trades ka deep analysis`} />
 
       {trades.length === 0 ? (
         <EmptyState icon="📊" title="Koi trade nahi abhi" sub="Trades log karo to analytics yahan dikhega" />
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             <StatCard label="Profit Factor" value={a.profitFactor === 999 ? "∞" : fmt(a.profitFactor)} color={a.profitFactor >= 1.5 ? "green" : "red"} sub="Gross Win / Gross Loss" />
             <StatCard label="Avg Win" value={formatPnl(a.avgWin)} color="green" sub={`Max: ${formatPnl(a.maxWin)}`} />
             <StatCard label="Avg Loss" value={formatPnl(-a.avgLoss)} color="red" sub={`Max: ${formatPnl(-a.maxLoss)}`} />
             <StatCard label="Avg R:R" value={fmt(a.avgRR)} color={a.avgRR >= 2 ? "green" : "amber"} sub="Risk:Reward" />
           </div>
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             <StatCard label="Win Streak" value={a.longestWinStreak} color="green" sub="Longest wins" />
             <StatCard label="Loss Streak" value={a.longestLossStreak} color="red" sub="Longest losses" />
             <StatCard label="Best Pair" value={String(a.bestPair).split(" ")[0]} color="green" />
             <StatCard label="Worst Pair" value={String(a.worstPair).split(" ")[0]} color="red" />
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <Card className="col-span-2 p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="md:col-span-2 p-5">
               <CardTitle>Equity Curve</CardTitle>
               {cumData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -151,7 +136,7 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <Card className="p-5">
               <CardTitle>Strategy Performance</CardTitle>
               {stratData.length > 0 ? (
@@ -198,7 +183,7 @@ export default function AnalyticsPage() {
 
           <Card className="p-5 mb-6">
             <CardTitle>Mistakes Frequency Analysis</CardTitle>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {MISTAKES.map(m => {
                 const count = mistakeFreq[m.id] || 0;
                 const pct = Math.round(count / totalT * 100);
@@ -224,7 +209,7 @@ export default function AnalyticsPage() {
           {sessData.length > 0 && (
             <Card className="p-5">
               <CardTitle>Session Performance</CardTitle>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {sessData.map(s=>(
                   <div key={s.name} className="stat-card">
                     <div className="text-xs text-ink-400 mb-2">{s.name}</div>

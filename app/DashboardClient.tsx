@@ -1,5 +1,6 @@
 "use client";
 import { Trade, MISTAKES } from "@/lib/types";
+import { invalidateTradeData } from "@/lib/useTradeData";
 import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt } from "@/lib/utils";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
@@ -44,11 +45,12 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
       const res = await fetch("/api/trades/clear", { method: "DELETE" });
       const j = await res.json();
       if (j.success) {
-        alert(`✅ ${j.deleted} trades delete ho gaye! Page refresh karo.`);
+        invalidateTradeData();
+        setShowClearModal(false);
         window.location.reload();
       }
     } catch { alert("Error clearing data"); }
-    finally { setClearing(false); setShowClearModal(false); }
+    finally { setClearing(false); }
   };
   const a = getAnalytics(trades);
   const cumData = getCumulative(trades);
@@ -70,7 +72,7 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
     .slice(0, 5);
 
   return (
-    <div className="p-8 page-transition">
+    <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Dashboard" subtitle={today}>
         {trades.length > 0 && (
           <button onClick={() => setShowClearModal(true)}
@@ -106,7 +108,7 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
       </PageHeader>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <StatCard
           label="Total P&L"
           value={formatPnl(a.totalPnl)}
@@ -137,9 +139,9 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Cumulative P&L */}
-        <Card className="col-span-2 p-5">
+        <Card className="md:col-span-2 p-5">
           <CardTitle>Cumulative P&L</CardTitle>
           {cumData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -208,8 +210,8 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
       </div>
 
       {/* Monthly Bar + Top Pairs */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <Card className="col-span-2 p-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="md:col-span-2 p-5">
           <CardTitle>Monthly P&L</CardTitle>
           {monthStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={180}>
@@ -262,7 +264,7 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
       </div>
 
       {/* Quick Stats Row */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <StatCard label="Avg Win" value={formatPnl(a.avgWin)} color="green" />
         <StatCard label="Avg Loss" value={formatPnl(-a.avgLoss)} color="red" />
         <StatCard label="Best Trade" value={formatPnl(a.maxWin)} sub={a.bestPair} color="green" />
@@ -278,7 +280,7 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
           </Link>
         </div>
         {recent.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-1">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.05]">

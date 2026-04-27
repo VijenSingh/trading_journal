@@ -47,7 +47,7 @@ export default function MistakesPage() {
   const ringColor = pct >= 75 ? "#00E676" : pct >= 50 ? "#FFB020" : "#FF4560";
 
   return (
-    <div className="p-8 page-transition max-w-4xl">
+    <div className="p-4 md:p-8 page-transition max-w-4xl">
       <PageHeader title="Daily Mistakes Tracker" subtitle="Aaj ye mistakes nahi ki? Check karo. Roz karo.">
         <Button variant="ghost" size="sm" onClick={reset}>
           <RefreshCw size={14} /> Reset (Naya Din)
@@ -96,7 +96,7 @@ export default function MistakesPage() {
       </Card>
 
       {/* Mistakes grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {MISTAKES.map(m => {
           const ok = avoided.includes(m.id);
           return (

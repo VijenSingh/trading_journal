@@ -1,9 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Trade } from "@/lib/types";
 import { getMonthStats, formatPnl, fmt, cn } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading, Badge } from "@/components/ui";
+import { useTradeData } from "@/lib/useTradeData";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from "recharts";
 
 const TT = ({ active, payload, label }: any) => {
@@ -21,18 +22,9 @@ const TT = ({ active, payload, label }: any) => {
 };
 
 export default function MonthlyPage() {
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { trades, loading } = useTradeData();
 
-  useEffect(() => {
-    fetch("/api/analytics", { cache: "no-store" })
-      .then(r => r.json())
-      .then(j => { if (j.success && Array.isArray(j.data)) setTrades(j.data); })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="p-8"><Loading /></div>;
+  if (loading) return <div className="p-4 md:p-8"><Loading /></div>;
 
   const stats = getMonthStats(trades);
   const totalPnl = stats.reduce((s, m) => s + m.pnl, 0);
@@ -40,21 +32,21 @@ export default function MonthlyPage() {
   const worstMonth = stats.length ? stats.reduce((b, m) => m.pnl < b.pnl ? m : b) : null;
 
   return (
-    <div className="p-8 page-transition">
+    <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Monthly P&L" subtitle={`${trades.length} trades · ${stats.length} months`} />
 
       {trades.length === 0 ? (
         <EmptyState icon="📅" title="Koi data nahi" sub="Trades log karo!" />
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             <StatCard label="Total P&L" value={formatPnl(totalPnl)} color={totalPnl >= 0 ? "green" : "red"} />
             <StatCard label="Total Months" value={stats.length} color="blue" sub="Trading kiye" />
             <StatCard label="Best Month" value={bestMonth ? formatPnl(bestMonth.pnl) : "—"} color="green" sub={bestMonth?.label} />
             <StatCard label="Worst Month" value={worstMonth ? formatPnl(worstMonth.pnl) : "—"} color="red" sub={worstMonth?.label} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <Card className="p-5">
               <CardTitle>Monthly P&L Bar</CardTitle>
               <ResponsiveContainer width="100%" height={220}>
@@ -89,8 +81,8 @@ export default function MonthlyPage() {
           <div className="space-y-3">
             {[...stats].reverse().map(m => (
               <Card key={m.month} className="p-5 card-hover">
-                <div className="flex items-center gap-6">
-                  <div className="min-w-[140px]">
+                <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                  <div className="min-w-0 md:min-w-[140px]">
                     <div className="text-sm font-semibold text-ink-100">{m.label}</div>
                     <div className="text-xs text-ink-400 font-mono mt-0.5">{m.trades} trades</div>
                   </div>
@@ -106,7 +98,7 @@ export default function MonthlyPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-center min-w-[280px]">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center min-w-[280px]">
                     <div>
                       <div className="text-[10px] text-ink-400 mb-1">Best Trade</div>
                       <div className="text-xs font-mono font-semibold text-green">{formatPnl(m.bestTrade)}</div>
@@ -120,7 +112,7 @@ export default function MonthlyPage() {
                       <div className="text-xs font-mono font-semibold text-red">{formatPnl(m.worstTrade)}</div>
                     </div>
                   </div>
-                  <div className="text-right min-w-[100px]">
+                  <div className="text-right">
                     <div className={`text-xl font-bold font-mono ${m.pnl>=0?"text-green":"text-red"}`}>{formatPnl(m.pnl)}</div>
                     <Badge variant={m.pnl>=0?"green":"red"} className="mt-1">{m.pnl>=0?"PROFIT":"LOSS"}</Badge>
                   </div>
