@@ -18,7 +18,7 @@ const defaultForm = {
 
 // ── Pip value per lot for common pairs ──────────────────────
 const PIP_VALUES: Record<string, number> = {
-  "XAUUSD (Gold)": 10,
+  "XAUUSD (Gold)": 1,
   "EURUSD": 10, "GBPUSD": 10, "AUDUSD": 10, "NZDUSD": 10,
   "USDJPY": 9.1, "GBPJPY": 9.1, "EURJPY": 9.1,
   "USDCAD": 7.7, "USDCHF": 11.2,
@@ -67,7 +67,7 @@ export default function NewTradePage() {
 
     // Price difference per unit
     const diff = form.type === "BUY" ? (exit - entry) : (entry - exit);
-    const pipVal = PIP_VALUES[pair] ?? 10;
+    const pipVal = PIP_VALUES[pair] ?? 1;
 
     let autoP: number;
     if (pair === "XAUUSD (Gold)") {
