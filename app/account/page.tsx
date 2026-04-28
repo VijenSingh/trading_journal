@@ -274,9 +274,19 @@ export default function AccountPage() {
         />
         <StatCard
           label="Best Day"
-          value={bestDay && dailyMap[bestDay] ? `+₹${Math.abs(dailyMap[bestDay].pnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
-          color="green"
+          value={bestDay && dailyMap[bestDay]
+            ? `${dailyMap[bestDay].pnl >= 0 ? "+" : "-"}₹${Math.abs(dailyMap[bestDay].pnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+            : "—"}
+          color={bestDay && dailyMap[bestDay]?.pnl >= 0 ? "green" : "red"}
           sub={bestDay || "—"}
+        />
+        <StatCard
+          label="Worst Day"
+          value={worstDay && dailyMap[worstDay]
+            ? `${dailyMap[worstDay].pnl >= 0 ? "+" : "-"}₹${Math.abs(dailyMap[worstDay].pnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+            : "—"}
+          color="red"
+          sub={worstDay || "—"}
         />
         <StatCard
           label="Max Drawdown"
