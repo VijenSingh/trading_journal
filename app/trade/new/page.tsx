@@ -18,7 +18,7 @@ const defaultForm = {
 
 // ── Pip value per lot for common pairs ──────────────────────
 const PIP_VALUES: Record<string, number> = {
-  "XAUUSD (Gold)": 100,
+  "XAUUSD (Gold)": 10,
   "EURUSD": 10, "GBPUSD": 10, "AUDUSD": 10, "NZDUSD": 10,
   "USDJPY": 9.1, "GBPJPY": 9.1, "EURJPY": 9.1,
   "USDCAD": 7.7, "USDCHF": 11.2,
@@ -71,8 +71,8 @@ export default function NewTradePage() {
 
     let autoP: number;
     if (pair === "XAUUSD (Gold)") {
-      // Gold: 1 lot = 100 oz, each $1 move = $100 per lot
-      autoP = diff * 100 * lot;
+      // Gold uses a special pip scale but still follows the pip value table.
+      autoP = diff * pipVal * lot;
     } else if (["NASDAQ", "US30", "SP500"].includes(pair)) {
       // Indices: diff × lot × 1
       autoP = diff * lot;
