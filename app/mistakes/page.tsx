@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { MISTAKES } from "@/lib/types";
 import { getToday, cn } from "@/lib/utils";
+import { invalidateTradeData } from "@/lib/useTradeData";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, Button } from "@/components/ui";
 import { RefreshCw } from "lucide-react";
@@ -22,23 +23,31 @@ export default function MistakesPage() {
   }, [today]);
 
   const save = async (newAvoided: number[]) => {
-    await fetch("/api/mistakes", {
+    const res = await fetch("/api/mistakes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date: today, avoided: newAvoided }),
     });
+    const j = await res.json();
+    if (!res.ok || !j.success) throw new Error(j.error || "Save failed");
+    invalidateTradeData();
   };
 
   const toggle = async (id: number) => {
+    const prev = avoided;
     const next = avoided.includes(id) ? avoided.filter(m => m !== id) : [...avoided, id];
     setAvoided(next);
-    await save(next);
+    try { await save(next); }
+    catch { setAvoided(prev); toast.error("Save failed — try again"); }
   };
 
   const reset = async () => {
+    const prev = avoided;
     setAvoided([]);
-    await save([]);
-    toast.success("Reset! Fresh start 🌅");
+    try {
+      await save([]);
+      toast.success("Reset! Fresh start 🌅");
+    } catch { setAvoided(prev); toast.error("Reset failed — try again"); }
   };
 
   const displayDate = new Date(today).toLocaleDateString("en-IN", { weekday:"long", year:"numeric", month:"long", day:"numeric" });

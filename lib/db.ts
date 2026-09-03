@@ -53,6 +53,7 @@ const TradeSchema = new mongoose.Schema(
     strategy: { type: String, default: "" },
     session: { type: String, default: "" },
     mistakes: { type: [Number], default: [] },
+    noMistakesFlag: { type: Boolean, default: false },
     emotion: { type: String, default: "" },
     reasoning: { type: String, default: "" },
     lesson: { type: String, default: "" },

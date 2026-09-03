@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel } from "@/lib/db";
 
+export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await connectDB();
+    const trade = await TradeModel.findById(params.id).lean();
+    if (!trade) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    return NextResponse.json({ success: true, data: trade });
+  } catch (e) {
+    console.error("GET /api/trades/[id]:", e);
+    return NextResponse.json({ success: false, error: "DB error" }, { status: 500 });
+  }
+}
+
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectDB();

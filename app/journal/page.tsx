@@ -5,7 +5,7 @@ import { formatPnl, getMonthLabel, cn } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, Badge, EmptyState, Loading, Button } from "@/components/ui";
-import { Trash2, ChevronDown, ChevronUp, Search, Filter } from "lucide-react";
+import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -32,16 +32,22 @@ export default function JournalPage() {
     finally { setLoading(false); }
   }, [filterPair, filterResult, filterMonth]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    window.addEventListener("trade-data-changed", load);
+    return () => window.removeEventListener("trade-data-changed", load);
+  }, [load]);
 
   const del = async (id: string) => {
     if (!confirm("Ye trade delete karein?")) return;
     try {
-      await fetch(`/api/trades/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/trades/${id}`, { method: "DELETE" });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error(j.error || "Delete failed");
       toast.success("Trade deleted");
       invalidateTradeData();
       setTrades(prev => prev.filter(t => t._id !== id));
-    } catch { toast.error("Delete failed"); }
+    } catch { toast.error("Delete failed — try again"); }
   };
 
   const pairs = Array.from(new Set(trades.map(t=>t.pair)));
@@ -172,6 +178,11 @@ export default function JournalPage() {
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
+                      <Link href={`/trade/${t._id}/edit`}>
+                        <Button variant="ghost" size="sm">
+                          <Pencil size={13} /> Edit
+                        </Button>
+                      </Link>
                       <Button variant="danger" size="sm" onClick={()=>del(t._id!)}>
                         <Trash2 size={13} /> Delete
                       </Button>

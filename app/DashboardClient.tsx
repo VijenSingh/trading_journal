@@ -1,7 +1,7 @@
 "use client";
-import { Trade, MISTAKES } from "@/lib/types";
-import { invalidateTradeData } from "@/lib/useTradeData";
-import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt } from "@/lib/utils";
+import { MISTAKES } from "@/lib/types";
+import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
+import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday } from "@/lib/utils";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -10,7 +10,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // Safe field helpers
 const sp = (v: unknown): string => (typeof v === "string" && v ? v : "");
@@ -35,9 +35,24 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-export default function DashboardClient({ trades, avoided }: { trades: Trade[]; avoided: number[] }) {
+export default function DashboardClient() {
+  const { trades, loading } = useTradeData();
+  const [avoided, setAvoided] = useState<number[]>([]);
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
+
+  const loadAvoided = useCallback(() => {
+    fetch(`/api/mistakes?date=${getToday()}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => setAvoided(j.data?.avoided || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadAvoided();
+    window.addEventListener("trade-data-changed", loadAvoided);
+    return () => window.removeEventListener("trade-data-changed", loadAvoided);
+  }, [loadAvoided]);
 
   const clearAllData = async () => {
     setClearing(true);
@@ -55,7 +70,9 @@ export default function DashboardClient({ trades, avoided }: { trades: Trade[]; 
   const a = getAnalytics(trades);
   const cumData = getCumulative(trades);
   const monthStats = getMonthStats(trades).slice(-6);
-  const recent = trades.slice(0, 8);
+  const recent = [...trades]
+    .sort((x, y) => (y.date + (y.time || "")).localeCompare(x.date + (x.time || "")))
+    .slice(0, 8);
   const mistakeScore = (avoided || []).length;
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",

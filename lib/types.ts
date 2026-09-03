@@ -15,6 +15,7 @@ export interface Trade {
   strategy: string;
   session: string;
   mistakes: number[];
+  noMistakesFlag?: boolean;
   emotion: string;
   reasoning: string;
   lesson: string;
