@@ -6,7 +6,12 @@ import { connectDB, DailyMistakeModel } from "@/lib/db";
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
-    const date = new URL(req.url).searchParams.get("date") || new Date().toISOString().split("T")[0];
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get("history") === "true") {
+      const docs = await DailyMistakeModel.find({}).sort({ date: -1 }).limit(90).lean();
+      return NextResponse.json({ success: true, data: docs });
+    }
+    const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
     const doc = await DailyMistakeModel.findOne({ date }).lean();
     return NextResponse.json({ success: true, data: doc || { date, avoided: [] } });
   } catch (e) {

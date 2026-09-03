@@ -121,3 +121,67 @@ export function getMistakeFreq(trades: Trade[]) {
 }
 export function getToday() { return new Date().toISOString().split("T")[0]; }
 export function getNow() { return new Date().toTimeString().slice(0, 5); }
+export function getThisMonth() { return getToday().slice(0, 7); }
+// ISO-8601 week key, e.g. "2026-W36"
+export function getWeekKey(dateStr?: string): string {
+  const d = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
+// ─── CSV Export ────────────────────────────────────────────────────────────
+function csvCell(v: unknown): string {
+  const str = s(v);
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+export function tradesToCsv(trades: Trade[]): string {
+  const headers = [
+    "Date", "Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
+    "P&L", "Pips", "RR", "Strategy", "Session", "Emotion", "Mistakes", "Tags",
+    "Reasoning", "Lesson", "Rules Followed",
+  ];
+  const rows = trades.map(t => [
+    t.date, t.time, t.pair, t.type, t.lot, t.entry, t.sl, t.target, t.exit,
+    t.pnl, t.pips, t.rr, t.strategy, t.session, t.emotion,
+    (t.mistakes || []).join("; "), (t.tags || []).join("; "),
+    t.reasoning, t.lesson, t.rulesFollowed,
+  ].map(csvCell).join(","));
+  return [headers.join(","), ...rows].join("\n");
+}
+// ─── Screenshot compression (client-side, before storing as base64) ────────
+export function compressImage(file: File, maxWidth = 1000, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas not supported")); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+export function downloadCsv(filename: string, csv: string) {
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

@@ -60,6 +60,20 @@ export default function AnalyticsPage() {
   trades.forEach(t => { const s = String(t.session || "Unknown"); sessPnl[s] = (sessPnl[s] || 0) + (Number(t.pnl) || 0); });
   const sessData = Object.entries(sessPnl).map(([name, pnl]) => ({ name, pnl })).sort((a, b) => b.pnl - a.pnl);
 
+  // Tag breakdown (a trade can carry multiple tags, so it contributes to each)
+  const tagPnl: Record<string, { pnl: number; trades: number; wins: number }> = {};
+  trades.forEach(t => {
+    (t.tags || []).forEach(tag => {
+      if (!tagPnl[tag]) tagPnl[tag] = { pnl: 0, trades: 0, wins: 0 };
+      tagPnl[tag].pnl += Number(t.pnl) || 0;
+      tagPnl[tag].trades++;
+      if ((Number(t.pnl) || 0) > 0) tagPnl[tag].wins++;
+    });
+  });
+  const tagData = Object.entries(tagPnl)
+    .map(([name, d]) => ({ name, ...d, winRate: Math.round(d.wins / d.trades * 100) }))
+    .sort((a, b) => b.pnl - a.pnl);
+
   // Day of week
   const dayPnl: Record<string, { pnl: number; count: number }> = {};
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -207,7 +221,7 @@ export default function AnalyticsPage() {
           </Card>
 
           {sessData.length > 0 && (
-            <Card className="p-5">
+            <Card className="p-5 mb-6">
               <CardTitle>Session Performance</CardTitle>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {sessData.map(s=>(
@@ -216,6 +230,34 @@ export default function AnalyticsPage() {
                     <div className={`text-xl font-bold font-mono ${s.pnl>=0?"text-green":"text-red"}`}>{formatPnl(s.pnl)}</div>
                   </div>
                 ))}
+              </div>
+            </Card>
+          )}
+
+          {tagData.length > 0 && (
+            <Card className="p-5">
+              <CardTitle>Tag Performance</CardTitle>
+              <div className="space-y-3">
+                {tagData.map(t => {
+                  const maxAbs = Math.max(...tagData.map(x => Math.abs(x.pnl)), 1);
+                  return (
+                    <div key={t.name} className="flex items-center gap-3">
+                      <div className="text-xs font-medium text-ink-200 w-28 truncate">#{t.name}</div>
+                      <div className="flex-1 h-6 bg-bg-700 rounded-lg overflow-hidden relative">
+                        <div className="h-full rounded-lg" style={{
+                          width:`${Math.min(100,Math.abs(t.pnl)/maxAbs*100)}%`,
+                          background:t.pnl>=0?"rgba(0,230,118,0.5)":"rgba(255,69,96,0.5)"
+                        }}/>
+                        <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-ink-100">
+                          {t.winRate}% WR · {t.trades}T
+                        </span>
+                      </div>
+                      <div className={`text-xs font-mono font-bold w-20 text-right ${t.pnl>=0?"text-green":"text-red"}`}>
+                        {formatPnl(t.pnl)}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           )}

@@ -3,26 +3,16 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Card, Button, Label } from "@/components/ui";
-import { PAIRS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, Trade } from "@/lib/types";
-import { getToday, getNow, cn } from "@/lib/utils";
+import { PAIRS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, PIP_VALUES, Trade } from "@/lib/types";
+import { getToday, getNow, cn, compressImage } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
-import { Save, X, Zap, PenLine, CheckCircle2 } from "lucide-react";
+import { Save, X, Zap, PenLine, CheckCircle2, ImagePlus, Trash2 } from "lucide-react";
 
 const defaultForm = {
   date: "", time: "", pair: "", customPair: "", type: "BUY" as "BUY" | "SELL",
   lot: "", entry: "", sl: "", target: "", exit: "", pnl: "",
   pips: "", rr: "", strategy: "", session: "", emotion: "",
   reasoning: "", lesson: "", rulesFollowed: "", tags: "",
-};
-
-// ── Pip value per lot for common pairs ──────────────────────
-const PIP_VALUES: Record<string, number> = {
-  "XAUUSD (Gold)": 10,
-  "EURUSD": 10, "GBPUSD": 10, "AUDUSD": 10, "NZDUSD": 10,
-  "USDJPY": 9.1, "GBPJPY": 9.1, "EURJPY": 9.1,
-  "USDCAD": 7.7, "USDCHF": 11.2,
-  "NASDAQ": 1, "US30": 1, "SP500": 1,
-  "BTCUSD": 1, "ETHUSD": 1, "USOIL": 10,
 };
 
 function FormGroup({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
@@ -66,6 +56,19 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const [pnlManualOverride, setPnlManualOverride] = useState(isEdit);
   const [pnlAutoCalc, setPnlAutoCalc] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [screenshot, setScreenshot] = useState(initialTrade?.screenshot || "");
+  const [compressing, setCompressing] = useState(false);
+
+  const handleScreenshot = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Sirf image files allowed"); return; }
+    setCompressing(true);
+    try {
+      const dataUrl = await compressImage(file);
+      setScreenshot(dataUrl);
+    } catch { toast.error("Image process nahi ho payi"); }
+    finally { setCompressing(false); }
+  };
 
   const set = (k: string, v: string) => {
     setForm(f => ({ ...f, [k]: v }));
@@ -182,6 +185,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         lesson: form.lesson,
         rulesFollowed: form.rulesFollowed,
         tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
+        screenshot,
       };
 
       const res = await fetch(isEdit ? `/api/trades/${tradeId}` : "/api/trades", {
@@ -204,6 +208,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         setPnlManualOverride(false);
         setPnlAutoCalc(null);
         setErrors({});
+        setScreenshot("");
         setTimeout(() => router.push("/journal"), 800);
       }
       router.refresh();
@@ -221,6 +226,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     setPnlManualOverride(false);
     setPnlAutoCalc(null);
     setErrors({});
+    setScreenshot("");
   };
 
   const toggleMistake = (id: number) => {
@@ -551,6 +557,33 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
               value={form.tags} onChange={e => set("tags", e.target.value)} />
           </FormGroup>
         </div>
+      </Card>
+
+      {/* ── Section 7: Screenshot ── */}
+      <Card className="p-5 md:p-6 mb-6">
+        <div className="text-xs font-semibold text-ink-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+          <span className="w-5 h-5 rounded-full bg-green/10 text-green text-[10px] flex items-center justify-center font-mono">7</span>
+          Chart Screenshot (optional)
+        </div>
+        {screenshot ? (
+          <div className="relative inline-block">
+            <img src={screenshot} alt="Trade screenshot" className="max-h-64 rounded-xl border border-white/[0.06]" />
+            <button type="button" onClick={() => setScreenshot("")}
+              className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-bg-950/80 text-red flex items-center justify-center hover:bg-bg-950 transition-all">
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ) : (
+          <label className={cn(
+            "flex flex-col items-center justify-center gap-2 p-8 rounded-xl border-2 border-dashed border-white/[0.1] cursor-pointer hover:border-green/30 hover:bg-green/5 transition-all",
+            compressing && "opacity-50 cursor-wait"
+          )}>
+            <ImagePlus size={24} className="text-ink-400" />
+            <span className="text-xs text-ink-400">{compressing ? "Processing..." : "Chart ka screenshot upload karo"}</span>
+            <input type="file" accept="image/*" className="hidden" disabled={compressing}
+              onChange={e => handleScreenshot(e.target.files?.[0] || null)} />
+          </label>
+        )}
       </Card>
 
       {/* ── Submit ── */}

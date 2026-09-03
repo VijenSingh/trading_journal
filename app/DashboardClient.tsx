@@ -9,8 +9,23 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { MINDSET_STORAGE_KEY, affirmations as mindsetAffirmations } from "@/lib/mindset";
+
+function computeStreak(history: { date: string; avoided: number[] }[]): number {
+  const map = new Map(history.map(h => [h.date, h.avoided.length]));
+  let streak = 0;
+  const d = new Date();
+  if (!map.has(getToday())) d.setDate(d.getDate() - 1);
+  while (true) {
+    const key = d.toISOString().split("T")[0];
+    const score = map.get(key);
+    if (score !== undefined && score >= 6) { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
 
 // Safe field helpers
 const sp = (v: unknown): string => (typeof v === "string" && v ? v : "");
@@ -38,6 +53,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function DashboardClient() {
   const { trades, loading } = useTradeData();
   const [avoided, setAvoided] = useState<number[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [mindsetReadToday, setMindsetReadToday] = useState(true); // default true so banner doesn't flash before check
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
 
@@ -48,11 +66,35 @@ export default function DashboardClient() {
       .catch(() => {});
   }, []);
 
+  const loadStreak = useCallback(() => {
+    fetch(`/api/mistakes?history=true`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => setStreak(computeStreak(j.data || [])))
+      .catch(() => {});
+  }, []);
+
+  const checkMindset = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(MINDSET_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      const doneToday = parsed?.date === getToday() && parsed.ids.length >= mindsetAffirmations.length;
+      setMindsetReadToday(doneToday);
+    } catch { setMindsetReadToday(true); }
+  }, []);
+
   useEffect(() => {
     loadAvoided();
+    loadStreak();
+    checkMindset();
     window.addEventListener("trade-data-changed", loadAvoided);
-    return () => window.removeEventListener("trade-data-changed", loadAvoided);
-  }, [loadAvoided]);
+    window.addEventListener("trade-data-changed", loadStreak);
+    window.addEventListener("trade-data-changed", checkMindset);
+    return () => {
+      window.removeEventListener("trade-data-changed", loadAvoided);
+      window.removeEventListener("trade-data-changed", loadStreak);
+      window.removeEventListener("trade-data-changed", checkMindset);
+    };
+  }, [loadAvoided, loadStreak, checkMindset]);
 
   const clearAllData = async () => {
     setClearing(true);
@@ -124,6 +166,22 @@ export default function DashboardClient() {
         )}
       </PageHeader>
 
+      {!mindsetReadToday && !bannerDismissed && (
+        <div className="flex items-center gap-3 p-4 mb-6 rounded-xl border border-purple/25 bg-purple/8">
+          <Brain size={18} className="text-purple flex-shrink-0" />
+          <div className="flex-1 text-sm text-ink-200">
+            <span className="font-semibold text-purple">Aaj Mindset affirmations nahi padhi.</span>{" "}
+            Trading se pehle 2 minute nikaalo — subconscious mein discipline daalna zaroori hai.
+          </div>
+          <Link href="/mindset" className="text-xs font-semibold text-purple hover:text-purple/80 whitespace-nowrap">
+            Ab Padho →
+          </Link>
+          <button onClick={() => setBannerDismissed(true)} className="text-ink-500 hover:text-ink-300 transition-colors flex-shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <StatCard
@@ -149,7 +207,7 @@ export default function DashboardClient() {
         <StatCard
           label="Discipline Score"
           value={`${mistakeScore}/8`}
-          sub="Aaj ki mistakes avoided"
+          sub={streak > 0 ? `🔥 ${streak} din ka streak` : "Aaj ki mistakes avoided"}
           color={mistakeScore >= 6 ? "green" : mistakeScore >= 3 ? "amber" : "red"}
           icon={<AlertTriangle size={16} />}
         />

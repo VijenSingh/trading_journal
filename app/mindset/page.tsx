@@ -1,23 +1,12 @@
 "use client";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { cn, getToday } from "@/lib/utils";
+import { invalidateTradeData } from "@/lib/useTradeData";
+import { MINDSET_STORAGE_KEY, affirmations } from "@/lib/mindset";
 
-const affirmations = [
-  { text: "Loss ek trade ka result hai, meri ability ka nahi. Har loss ek lesson hai — main wapas aaunga aur better karunga.", category: "Loss" },
-  { text: "Mujhe profit ki zaroorat nahi hai aaj — mujhe sirf apna process follow karna hai. Process sahi hoga to profit aayega khud.", category: "Process" },
-  { text: "Ek loss ko cover karne ki koshish mein main 5 aur loss karunga. Rukna aur wait karna hi asli samajhdaari hai.", category: "Revenge" },
-  { text: "Market mera dushman nahi hai. Main hi apna sabse bada dushman hoon jab main apne rules todta hoon.", category: "Discipline" },
-  { text: "Consistent trader woh hota hai jo boring trade leta hai — exciting nahi. Excitement = increased risk = loss.", category: "Mindset" },
-  { text: "Mera SL woh jagah hai jahan main galat sabit ho jaata hoon. Usse gracefully accept karna hi meri strength hai.", category: "SL" },
-  { text: "Lot size badhana solution nahi hai kabhi bhi. Discipline hi mera sabse bada weapon hai propfirm mein survive karne ka.", category: "Lot" },
-  { text: "Sideways market mein wait karna bhi ek profitable decision hai. No trade = saved capital = protected account.", category: "Patience" },
-  { text: "Purane profit ko recover karna mera goal nahi hai. Aaj ka trade aaj ka hai. Fresh start. Fresh mind.", category: "Fresh" },
-  { text: "Main ek professional trader hoon. Professional log apne rules se trade karte hain — emotion se nahi.", category: "Pro" },
-  { text: "FOMO ek lie hai. Jo setup miss hua woh market hamesha dobara dega. Patience ek edge hai.", category: "FOMO" },
-  { text: "Ek trade se meri zindagi nahi badlegi. Lekin ek disciplined week, month, year sab kuch badal sakta hai.", category: "Long Game" },
-];
+const STORAGE_KEY = MINDSET_STORAGE_KEY;
 
 const protocols = [
   {
@@ -68,7 +57,28 @@ const protocols = [
 
 export default function MindsetPage() {
   const [readAll, setReadAll] = useState<number[]>([]);
-  const toggle = (i: number) => setReadAll(prev => prev.includes(i) ? prev.filter(x=>x!==i) : [...prev,i]);
+
+  // Restore today's read progress from localStorage — resets naturally on a new day.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.date === getToday()) setReadAll(parsed.ids);
+      }
+    } catch {}
+  }, []);
+
+  const persist = (ids: number[]) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: getToday(), ids })); } catch {}
+    if (ids.length === affirmations.length) invalidateTradeData();
+  };
+
+  const toggle = (i: number) => setReadAll(prev => {
+    const next = prev.includes(i) ? prev.filter(x=>x!==i) : [...prev,i];
+    persist(next);
+    return next;
+  });
 
   return (
     <div className="p-4 md:p-8 page-transition max-w-4xl">

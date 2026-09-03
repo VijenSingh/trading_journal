@@ -59,6 +59,7 @@ const TradeSchema = new mongoose.Schema(
     lesson: { type: String, default: "" },
     rulesFollowed: { type: String, default: "" },
     tags: { type: [String], default: [] },
+    screenshot: { type: String, default: "" },
   },
   { timestamps: true }
 );
@@ -69,9 +70,35 @@ const DailyMistakeSchema = new mongoose.Schema({
   avoided: { type: [Number], default: [] },
 });
 
+// ─── Goal Schema ─────────────────────────────────────────────────────────────
+const GoalSchema = new mongoose.Schema({
+  periodType: { type: String, enum: ["month", "week"], required: true },
+  periodKey: { type: String, required: true }, // "2026-09" for month, "2026-W36" for week
+  targetPnl: { type: Number, default: 0 },
+  maxLossLimit: { type: Number, default: 0 },
+});
+GoalSchema.index({ periodType: 1, periodKey: 1 }, { unique: true });
+
+// ─── Balance Transaction Schema (deposits / withdrawals) ───────────────────
+const TransactionSchema = new mongoose.Schema(
+  {
+    date: { type: String, required: true },
+    type: { type: String, enum: ["deposit", "withdrawal"], required: true },
+    amount: { type: Number, required: true },
+    note: { type: String, default: "" },
+  },
+  { timestamps: true }
+);
+
 export const TradeModel =
   mongoose.models.Trade || mongoose.model("Trade", TradeSchema);
 
 export const DailyMistakeModel =
   mongoose.models.DailyMistake ||
   mongoose.model("DailyMistake", DailyMistakeSchema);
+
+export const GoalModel =
+  mongoose.models.Goal || mongoose.model("Goal", GoalSchema);
+
+export const TransactionModel =
+  mongoose.models.Transaction || mongoose.model("Transaction", TransactionSchema);

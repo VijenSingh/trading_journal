@@ -1,42 +1,82 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { formatPnl, getMonthLabel, cn } from "@/lib/utils";
+import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, Badge, EmptyState, Loading, Button } from "@/components/ui";
-import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter } from "lucide-react";
+import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
+const PAGE_SIZE = 20;
+
 export default function JournalPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterPair, setFilterPair] = useState("");
   const [filterResult, setFilterResult] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
+  // Full unfiltered pair/month list — independent of pagination — so dropdown options stay complete.
+  const [allOptions, setAllOptions] = useState<{ pairs: string[]; months: string[] }>({ pairs: [], months: [] });
+
+  const buildParams = useCallback((skip: number) => {
+    const params = new URLSearchParams();
+    if (filterPair) params.set("pair", filterPair);
+    if (filterResult) params.set("result", filterResult);
+    if (filterMonth) params.set("month", filterMonth);
+    params.set("limit", String(PAGE_SIZE));
+    params.set("skip", String(skip));
+    return params;
+  }, [filterPair, filterResult, filterMonth]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filterPair) params.set("pair", filterPair);
-      if (filterResult) params.set("result", filterResult);
-      if (filterMonth) params.set("month", filterMonth);
-      const res = await fetch("/api/trades?" + params.toString());
+      const res = await fetch("/api/trades?" + buildParams(0).toString());
       const json = await res.json();
       setTrades(json.data || []);
+      setTotal(json.total ?? (json.data || []).length);
     } catch { toast.error("Load error"); }
     finally { setLoading(false); }
-  }, [filterPair, filterResult, filterMonth]);
+  }, [buildParams]);
+
+  const loadOptions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/analytics");
+      const json = await res.json();
+      const all: Trade[] = json.data || [];
+      setAllOptions({
+        pairs: Array.from(new Set(all.map(t => t.pair))).sort(),
+        months: Array.from(new Set(all.map(t => t.date.slice(0, 7)))).sort().reverse(),
+      });
+    } catch {}
+  }, []);
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const res = await fetch("/api/trades?" + buildParams(trades.length).toString());
+      const json = await res.json();
+      setTrades(prev => [...prev, ...(json.data || [])]);
+    } catch { toast.error("Load more failed"); }
+    finally { setLoadingMore(false); }
+  };
 
   useEffect(() => {
     load();
+    loadOptions();
     window.addEventListener("trade-data-changed", load);
-    return () => window.removeEventListener("trade-data-changed", load);
-  }, [load]);
+    window.addEventListener("trade-data-changed", loadOptions);
+    return () => {
+      window.removeEventListener("trade-data-changed", load);
+      window.removeEventListener("trade-data-changed", loadOptions);
+    };
+  }, [load, loadOptions]);
 
   const del = async (id: string) => {
     if (!confirm("Ye trade delete karein?")) return;
@@ -47,11 +87,11 @@ export default function JournalPage() {
       toast.success("Trade deleted");
       invalidateTradeData();
       setTrades(prev => prev.filter(t => t._id !== id));
+      setTotal(prev => Math.max(0, prev - 1));
     } catch { toast.error("Delete failed — try again"); }
   };
 
-  const pairs = Array.from(new Set(trades.map(t=>t.pair)));
-  const months = Array.from(new Set(trades.map(t=>t.date.slice(0,7)))).sort().reverse();
+  const { pairs, months } = allOptions;
 
   const filtered = trades.filter(t =>
     !search || t.pair.toLowerCase().includes(search.toLowerCase()) ||
@@ -59,9 +99,18 @@ export default function JournalPage() {
     t.reasoning?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const exportCsv = () => {
+    if (filtered.length === 0) { toast.error("Export karne ke liye koi trade nahi"); return; }
+    downloadCsv(`tradermind-journal-${getToday()}.csv`, tradesToCsv(filtered));
+    toast.success(`${filtered.length} trades exported ✅`);
+  };
+
   return (
     <div className="p-4 md:p-8 page-transition">
-      <PageHeader title="Trade Journal" subtitle={`${trades.length} trades logged`}>
+      <PageHeader title="Trade Journal" subtitle={`${total} trades logged`}>
+        <Button variant="ghost" size="sm" onClick={exportCsv}>
+          <Download size={13} /> Export CSV
+        </Button>
         <Link href="/trade/new">
           <Button variant="primary" size="sm">+ New Trade</Button>
         </Link>
@@ -134,6 +183,15 @@ export default function JournalPage() {
                       ))}
                     </div>
 
+                    {/* Screenshot */}
+                    {t.screenshot && (
+                      <div>
+                        <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-2">Chart Screenshot</div>
+                        <img src={t.screenshot} alt="Trade screenshot" onClick={() => window.open(t.screenshot, "_blank")}
+                          className="max-h-48 rounded-xl border border-white/[0.06] cursor-zoom-in hover:opacity-90 transition-opacity" />
+                      </div>
+                    )}
+
                     {/* Tags */}
                     {t.tags?.length>0 && (
                       <div className="flex gap-2 flex-wrap">
@@ -192,6 +250,14 @@ export default function JournalPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {!loading && !search && trades.length < total && (
+        <div className="flex justify-center mt-6">
+          <Button variant="ghost" size="md" onClick={loadMore} loading={loadingMore}>
+            Load More ({total - trades.length} baaki)
+          </Button>
         </div>
       )}
     </div>

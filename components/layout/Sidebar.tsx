@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, PlusCircle, BookOpen, BarChart3,
   CalendarDays, Target, BookMarked, Brain, TrendingUp,
-  Building2, Menu, X,
+  Building2, Menu, X, Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ const nav = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/account", icon: Building2, label: "Performance" },
   { href: "/trade/new", icon: PlusCircle, label: "New Trade" },
+  { href: "/calculator", icon: Calculator, label: "Calculator" },
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
   { href: "/monthly", icon: CalendarDays, label: "Monthly P&L" },

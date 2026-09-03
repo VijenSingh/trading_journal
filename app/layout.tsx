@@ -1,18 +1,33 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
+import PWARegister from "@/components/PWARegister";
+import DataSyncOnFocus from "@/components/DataSyncOnFocus";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "TraderMind — Lucid PropFirm Journal",
   description: "Advanced trading journal for consistent profitable trading",
-  viewport: "width=device-width, initial-scale=1",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "TraderMind" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#05070D",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <PWARegister />
+        <DataSyncOnFocus />
         <div className="flex min-h-screen bg-bg-950">
           <Sidebar />
           {/* Desktop: margin-left for sidebar. Mobile: padding-top for topbar */}

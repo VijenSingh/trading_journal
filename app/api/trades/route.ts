@@ -15,8 +15,17 @@ export async function GET(req: NextRequest) {
     if (pair) query.pair = pair;
     if (result === "profit") query.pnl = { $gt: 0 };
     if (result === "loss") query.pnl = { $lt: 0 };
-    const trades = await TradeModel.find(query).sort({ date: -1, time: -1 }).lean();
-    return NextResponse.json({ success: true, data: trades });
+
+    const limitParam = parseInt(searchParams.get("limit") || "", 10);
+    const skipParam = parseInt(searchParams.get("skip") || "0", 10);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 500) : undefined;
+    const skip = Number.isFinite(skipParam) && skipParam > 0 ? skipParam : 0;
+
+    const total = await TradeModel.countDocuments(query);
+    let q = TradeModel.find(query).sort({ date: -1, time: -1 }).skip(skip);
+    if (limit) q = q.limit(limit);
+    const trades = await q.lean();
+    return NextResponse.json({ success: true, data: trades, total });
   } catch (e) {
     console.error("GET /api/trades:", e);
     return NextResponse.json({ success: false, error: "DB error", data: [] }, { status: 500 });

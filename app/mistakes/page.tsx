@@ -16,10 +16,15 @@ export default function MistakesPage() {
   const pct = Math.round(score / MISTAKES.length * 100);
 
   useEffect(() => {
-    fetch(`/api/mistakes?date=${today}`)
-      .then(r => r.json())
-      .then(j => setAvoided(j.data?.avoided || []))
-      .finally(() => setLoading(false));
+    const load = () => {
+      fetch(`/api/mistakes?date=${today}`)
+        .then(r => r.json())
+        .then(j => setAvoided(j.data?.avoided || []))
+        .finally(() => setLoading(false));
+    };
+    load();
+    window.addEventListener("trade-data-changed", load);
+    return () => window.removeEventListener("trade-data-changed", load);
   }, [today]);
 
   const save = async (newAvoided: number[]) => {

@@ -1,11 +1,132 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trade } from "@/lib/types";
-import { getMonthStats, formatPnl, fmt, cn } from "@/lib/utils";
+import { getMonthStats, formatPnl, fmt, cn, getThisMonth, getWeekKey } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
-import { Card, CardTitle, StatCard, EmptyState, Loading, Badge } from "@/components/ui";
+import { Card, CardTitle, StatCard, EmptyState, Loading, Badge, Button, Label } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from "recharts";
+import { Target } from "lucide-react";
+import toast from "react-hot-toast";
+
+function GoalsCard({ trades }: { trades: Trade[] }) {
+  const thisMonth = getThisMonth();
+  const thisWeek = getWeekKey();
+  const [targetPnl, setTargetPnl] = useState("");
+  const [maxLossLimit, setMaxLossLimit] = useState("");
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [editingLimit, setEditingLimit] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/goals?periodType=month&periodKey=${thisMonth}`).then(r => r.json())
+      .then(j => { if (j.success) setTargetPnl(j.data.targetPnl ? String(j.data.targetPnl) : ""); });
+    fetch(`/api/goals?periodType=week&periodKey=${thisWeek}`).then(r => r.json())
+      .then(j => { if (j.success) setMaxLossLimit(j.data.maxLossLimit ? String(j.data.maxLossLimit) : ""); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveTarget = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/goals", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodType: "month", periodKey: thisMonth, targetPnl: parseFloat(targetPnl) || 0 }),
+      });
+      toast.success("Monthly target saved ✅");
+      setEditingTarget(false);
+    } catch { toast.error("Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  const saveLimit = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/goals", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodType: "week", periodKey: thisWeek, maxLossLimit: parseFloat(maxLossLimit) || 0 }),
+      });
+      toast.success("Weekly loss limit saved ✅");
+      setEditingLimit(false);
+    } catch { toast.error("Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  const monthPnl = trades.filter(t => (t.date || "").startsWith(thisMonth)).reduce((s, t) => s + (Number(t.pnl) || 0), 0);
+  const weekPnl = trades.filter(t => getWeekKey(t.date) === thisWeek).reduce((s, t) => s + (Number(t.pnl) || 0), 0);
+
+  const target = parseFloat(targetPnl) || 0;
+  const targetPct = target > 0 ? Math.max(0, Math.min(100, (monthPnl / target) * 100)) : 0;
+
+  const limit = parseFloat(maxLossLimit) || 0;
+  const weekLoss = Math.abs(Math.min(0, weekPnl));
+  const limitPct = limit > 0 ? Math.min(100, (weekLoss / limit) * 100) : 0;
+  const limitBreached = limit > 0 && weekLoss >= limit;
+
+  return (
+    <Card className="p-5 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Target size={14} className="text-green" />
+        <CardTitle className="mb-0">Goals & Risk Limits</CardTitle>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Monthly target */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label>Is Mahine Ka Target (₹)</Label>
+            {!editingTarget && <button onClick={() => setEditingTarget(true)} className="text-[11px] text-blue hover:text-blue/80">Edit</button>}
+          </div>
+          {editingTarget ? (
+            <div className="flex gap-2">
+              <input type="number" className="inp" placeholder="e.g. 20000" value={targetPnl} onChange={e => setTargetPnl(e.target.value)} />
+              <Button variant="primary" size="sm" onClick={saveTarget} loading={saving}>Save</Button>
+            </div>
+          ) : target > 0 ? (
+            <>
+              <div className="flex justify-between text-xs font-mono mb-1.5">
+                <span className={monthPnl >= 0 ? "text-green" : "text-red"}>{formatPnl(monthPnl)}</span>
+                <span className="text-ink-400">/ ₹{target.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="h-2 bg-bg-700 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width: `${targetPct}%`, background: monthPnl >= target ? "#00E676" : "#4D8EFF" }} />
+              </div>
+              {monthPnl >= target && <div className="text-[11px] text-green mt-1.5">🎯 Target achieve ho gaya!</div>}
+            </>
+          ) : (
+            <div className="text-xs text-ink-500">Koi target set nahi — Edit pe click karo</div>
+          )}
+        </div>
+
+        {/* Weekly max loss limit */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label>Is Hafte Ki Max Loss Limit (₹)</Label>
+            {!editingLimit && <button onClick={() => setEditingLimit(true)} className="text-[11px] text-blue hover:text-blue/80">Edit</button>}
+          </div>
+          {editingLimit ? (
+            <div className="flex gap-2">
+              <input type="number" className="inp" placeholder="e.g. 5000" value={maxLossLimit} onChange={e => setMaxLossLimit(e.target.value)} />
+              <Button variant="primary" size="sm" onClick={saveLimit} loading={saving}>Save</Button>
+            </div>
+          ) : limit > 0 ? (
+            <>
+              <div className="flex justify-between text-xs font-mono mb-1.5">
+                <span className={limitBreached ? "text-red" : "text-ink-300"}>-₹{weekLoss.toLocaleString("en-IN")}</span>
+                <span className="text-ink-400">/ ₹{limit.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="h-2 bg-bg-700 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width: `${limitPct}%`, background: limitBreached ? "#FF4560" : "#FFB020" }} />
+              </div>
+              {limitBreached && <div className="text-[11px] text-red mt-1.5">🚨 Limit cross ho gayi — is hafte ke liye ruko</div>}
+            </>
+          ) : (
+            <div className="text-xs text-ink-500">Koi limit set nahi — Edit pe click karo</div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 const TT = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -34,6 +155,8 @@ export default function MonthlyPage() {
   return (
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Monthly P&L" subtitle={`${trades.length} trades · ${stats.length} months`} />
+
+      <GoalsCard trades={trades} />
 
       {trades.length === 0 ? (
         <EmptyState icon="📅" title="Koi data nahi" sub="Trades log karo!" />

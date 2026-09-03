@@ -1,15 +1,146 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Trade } from "@/lib/types";
-import { formatPnl, cn } from "@/lib/utils";
+import { formatPnl, cn, getToday } from "@/lib/utils";
 import { useTradeData } from "@/lib/useTradeData";
 import PageHeader from "@/components/layout/PageHeader";
-import { Card, CardTitle, Loading, StatCard } from "@/components/ui";
+import { Card, CardTitle, Loading, StatCard, Button, Label } from "@/components/ui";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from "recharts";
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Calendar, BarChart2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Calendar, BarChart2, Wallet, Plus, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
+
+interface Txn { _id: string; date: string; type: "deposit" | "withdrawal"; amount: number; note: string; }
+
+function BalanceManager({ totalPnl }: { totalPnl: number }) {
+  const [txns, setTxns] = useState<Txn[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ date: getToday(), type: "deposit" as "deposit" | "withdrawal", amount: "", note: "" });
+  const [saving, setSaving] = useState(false);
+
+  const load = () => {
+    fetch("/api/balance").then(r => r.json()).then(j => { if (j.success) setTxns(j.data); }).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const deposits = txns.filter(t => t.type === "deposit").reduce((s, t) => s + t.amount, 0);
+  const withdrawals = txns.filter(t => t.type === "withdrawal").reduce((s, t) => s + t.amount, 0);
+  const balance = deposits - withdrawals + totalPnl;
+
+  const add = async () => {
+    const amt = parseFloat(form.amount);
+    if (!amt || amt <= 0) { toast.error("Valid amount enter karo"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/balance", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, amount: amt }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error();
+      toast.success(form.type === "deposit" ? "Deposit added ✅" : "Withdrawal added ✅");
+      setForm({ date: getToday(), type: "deposit", amount: "", note: "" });
+      setShowForm(false);
+      load();
+    } catch { toast.error("Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  const del = async (id: string) => {
+    if (!confirm("Ye transaction delete karein?")) return;
+    try {
+      const res = await fetch(`/api/balance/${id}`, { method: "DELETE" });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error();
+      toast.success("Deleted");
+      setTxns(prev => prev.filter(t => t._id !== id));
+    } catch { toast.error("Delete failed — try again"); }
+  };
+
+  return (
+    <Card className="p-5 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Wallet size={14} className="text-green" />
+          <CardTitle className="mb-0">Account Balance</CardTitle>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setShowForm(s => !s)}>
+          <Plus size={13} /> {showForm ? "Cancel" : "Add Transaction"}
+        </Button>
+      </div>
+
+      <div className="text-3xl font-bold font-mono text-ink-100 mb-1">
+        ₹{balance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+      </div>
+      <div className="text-xs text-ink-400 font-mono mb-4">
+        Deposits: +₹{deposits.toLocaleString("en-IN")} · Withdrawals: -₹{withdrawals.toLocaleString("en-IN")} · Trade P&L: {formatPnl(totalPnl)}
+      </div>
+
+      {showForm && (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4 p-4 bg-bg-700 rounded-xl">
+          <div className="flex flex-col gap-1.5">
+            <Label>Type</Label>
+            <select className="inp" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as "deposit" | "withdrawal" }))}>
+              <option value="deposit">Deposit</option>
+              <option value="withdrawal">Withdrawal</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Amount (₹)</Label>
+            <input type="number" className="inp" placeholder="e.g. 10000" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Date</Label>
+            <input type="date" className="inp" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Note (optional)</Label>
+            <input className="inp" placeholder="e.g. Propfirm payout" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
+          </div>
+          <div className="sm:col-span-4">
+            <Button variant="primary" size="sm" onClick={add} loading={saving}>Save Transaction</Button>
+          </div>
+        </div>
+      )}
+
+      {!loading && txns.length > 0 && (
+        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+          {txns.map(t => (
+            <div key={t._id} className="flex items-center justify-between p-2.5 bg-bg-700 rounded-lg text-xs">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-ink-400">{t.date}</span>
+                <Badge2 type={t.type} />
+                {t.note && <span className="text-ink-400">{t.note}</span>}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={cn("font-mono font-semibold", t.type === "deposit" ? "text-green" : "text-red")}>
+                  {t.type === "deposit" ? "+" : "-"}₹{t.amount.toLocaleString("en-IN")}
+                </span>
+                <button onClick={() => del(t._id)} className="text-ink-500 hover:text-red transition-colors">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Badge2({ type }: { type: "deposit" | "withdrawal" }) {
+  return (
+    <span className={cn(
+      "text-[10px] px-2 py-0.5 rounded-lg border font-semibold",
+      type === "deposit" ? "bg-green/10 text-green border-green/20" : "bg-red/10 text-red border-red/20"
+    )}>
+      {type === "deposit" ? "Deposit" : "Withdrawal"}
+    </span>
+  );
+}
 
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
 const ChartTooltip = ({ active, payload, label }: any) => {
@@ -249,6 +380,8 @@ export default function AccountPage() {
   return (
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Performance Overview" subtitle="Trade entries se automatic cumulative P&L aur calendar" />
+
+      <BalanceManager totalPnl={totalPnl} />
 
       {/* Top stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">

@@ -21,6 +21,7 @@ export interface Trade {
   lesson: string;
   rulesFollowed: string;
   tags: string[];
+  screenshot?: string;
   createdAt?: string;
 }
 
@@ -71,6 +72,16 @@ export const EMOTIONS = [
   { value:"fomo",        label:"😱 FOMO",           color:"#FF4560" },
   { value:"revengeful",  label:"😤 Revenge",        color:"#FF4560" },
 ];
+
+// ── Pip value per standard lot for common pairs ──────────────────────
+export const PIP_VALUES: Record<string, number> = {
+  "XAUUSD (Gold)": 10,
+  "EURUSD": 10, "GBPUSD": 10, "AUDUSD": 10, "NZDUSD": 10,
+  "USDJPY": 9.1, "GBPJPY": 9.1, "EURJPY": 9.1,
+  "USDCAD": 7.7, "USDCHF": 11.2,
+  "NASDAQ": 1, "US30": 1, "SP500": 1,
+  "BTCUSD": 1, "ETHUSD": 1, "USOIL": 10,
+};
 
 export const MONTH_NAMES = [
   "January","February","March","April","May","June",
