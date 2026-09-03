@@ -282,7 +282,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
                     "flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all",
                     form.type === t
                       ? t === "BUY" ? "bg-green/15 text-green border-green/30" : "bg-red/15 text-red border-red/30"
-                      : "bg-bg-700 text-ink-300 border-white/[0.06] hover:bg-bg-600"
+                      : "bg-bg-700 text-ink-300 border-black/[0.06] hover:bg-bg-600"
                   )}>
                   {t === "BUY" ? "📈 BUY" : "📉 SELL"}
                 </button>
@@ -434,7 +434,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         {form.pnl && (
           <div className={cn(
             "mt-4 p-4 rounded-xl border flex items-center justify-between",
-            isProfit ? "bg-green/8 border-green/20" : pnlVal < 0 ? "bg-red/8 border-red/20" : "bg-bg-700 border-white/[0.06]"
+            isProfit ? "bg-green/8 border-green/20" : pnlVal < 0 ? "bg-red/8 border-red/20" : "bg-bg-700 border-black/[0.06]"
           )}>
             <div>
               <div className="text-xs text-ink-400 mb-1">Trade Result Preview</div>
@@ -463,7 +463,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
               onClick={() => set("emotion", form.emotion === em.value ? "" : em.value)}
               className={cn(
                 "px-3 py-2 rounded-xl text-sm border transition-all",
-                form.emotion === em.value ? "border-current font-semibold" : "bg-bg-700 text-ink-300 border-white/[0.06] hover:bg-bg-600"
+                form.emotion === em.value ? "border-current font-semibold" : "bg-bg-700 text-ink-300 border-black/[0.06] hover:bg-bg-600"
               )}
               style={form.emotion === em.value ? { color: em.color, background: `${em.color}18`, borderColor: `${em.color}40` } : {}}>
               {em.label}
@@ -488,8 +488,8 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
                 disabled={noMistakes}
                 className={cn(
                   "flex items-start gap-3 p-3 rounded-xl border text-left transition-all",
-                  noMistakes ? "opacity-30 cursor-not-allowed bg-bg-700 border-white/[0.06]" :
-                    sel ? "bg-red/8 border-red/30" : "bg-bg-700 border-white/[0.06] hover:bg-bg-600"
+                  noMistakes ? "opacity-30 cursor-not-allowed bg-bg-700 border-black/[0.06]" :
+                    sel ? "bg-red/8 border-red/30" : "bg-bg-700 border-black/[0.06] hover:bg-bg-600"
                 )}>
                 <div className={cn(
                   "w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold border transition-all",
@@ -508,11 +508,11 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         <button type="button" onClick={() => { setNoMistakes(p => !p); setSelectedMistakes([]); }}
           className={cn(
             "w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
-            noMistakes ? "bg-green/10 border-green/40 shadow-glow" : "bg-bg-700 border-dashed border-white/[0.1] hover:border-green/20 hover:bg-green/5"
+            noMistakes ? "bg-green/10 border-green/40 shadow-glow" : "bg-bg-700 border-dashed border-black/[0.1] hover:border-green/20 hover:bg-green/5"
           )}>
           <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all",
             noMistakes ? "bg-green border-green" : "border-ink-400")}>
-            <CheckCircle2 size={18} className={noMistakes ? "text-bg-950" : "text-ink-500"} />
+            <CheckCircle2 size={18} className={noMistakes ? "text-white" : "text-ink-500"} />
           </div>
           <div className="text-left flex-1">
             <div className={`text-sm font-bold ${noMistakes ? "text-green" : "text-ink-200"}`}>✅ Koi Mistake Nahi Ki!</div>
@@ -567,7 +567,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         </div>
         {screenshot ? (
           <div className="relative inline-block">
-            <img src={screenshot} alt="Trade screenshot" className="max-h-64 rounded-xl border border-white/[0.06]" />
+            <img src={screenshot} alt="Trade screenshot" className="max-h-64 rounded-xl border border-black/[0.06]" />
             <button type="button" onClick={() => setScreenshot("")}
               className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-bg-950/80 text-red flex items-center justify-center hover:bg-bg-950 transition-all">
               <Trash2 size={13} />
@@ -575,7 +575,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
           </div>
         ) : (
           <label className={cn(
-            "flex flex-col items-center justify-center gap-2 p-8 rounded-xl border-2 border-dashed border-white/[0.1] cursor-pointer hover:border-green/30 hover:bg-green/5 transition-all",
+            "flex flex-col items-center justify-center gap-2 p-8 rounded-xl border-2 border-dashed border-black/[0.1] cursor-pointer hover:border-green/30 hover:bg-green/5 transition-all",
             compressing && "opacity-50 cursor-wait"
           )}>
             <ImagePlus size={24} className="text-ink-400" />

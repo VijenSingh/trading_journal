@@ -88,7 +88,7 @@ function GoalsCard({ trades }: { trades: Trade[] }) {
                 <span className="text-ink-400">/ ₹{target.toLocaleString("en-IN")}</span>
               </div>
               <div className="h-2 bg-bg-700 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${targetPct}%`, background: monthPnl >= target ? "#00E676" : "#4D8EFF" }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${targetPct}%`, background: monthPnl >= target ? "#10B981" : "#6366F1" }} />
               </div>
               {monthPnl >= target && <div className="text-[11px] text-green mt-1.5">🎯 Target achieve ho gaya!</div>}
             </>
@@ -115,7 +115,7 @@ function GoalsCard({ trades }: { trades: Trade[] }) {
                 <span className="text-ink-400">/ ₹{limit.toLocaleString("en-IN")}</span>
               </div>
               <div className="h-2 bg-bg-700 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${limitPct}%`, background: limitBreached ? "#FF4560" : "#FFB020" }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${limitPct}%`, background: limitBreached ? "#F43F5E" : "#F59E0B" }} />
               </div>
               {limitBreached && <div className="text-[11px] text-red mt-1.5">🚨 Limit cross ho gayi — is hafte ke liye ruko</div>}
             </>
@@ -131,7 +131,7 @@ function GoalsCard({ trades }: { trades: Trade[] }) {
 const TT = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-bg-700 border border-white/10 rounded-xl p-3 text-xs font-mono shadow-card">
+    <div className="bg-bg-700 border border-black/10 rounded-xl p-3 text-xs font-mono shadow-card">
       <div className="text-ink-300 mb-1">{label}</div>
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color }}>
@@ -174,13 +174,13 @@ export default function MonthlyPage() {
               <CardTitle>Monthly P&L Bar</CardTitle>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={stats} margin={{top:5,right:5,bottom:0,left:10}}>
-                  <XAxis dataKey="label" tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}
+                  <XAxis dataKey="label" tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
                     tickFormatter={v=>String(v).slice(0,3)}/>
-                  <YAxis tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}
+                  <YAxis tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
                     tickFormatter={v=>"₹"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
                   <Tooltip content={<TT />}/>
                   <Bar dataKey="pnl" name="P&L" radius={[4,4,0,0]}>
-                    {stats.map((m,i)=><Cell key={i} fill={m.pnl>=0?"#00E676":"#FF4560"} opacity={0.8}/>)}
+                    {stats.map((m,i)=><Cell key={i} fill={m.pnl>=0?"#10B981":"#F43F5E"} opacity={0.8}/>)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -190,12 +190,12 @@ export default function MonthlyPage() {
               <CardTitle>Win Rate Trend</CardTitle>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={stats} margin={{top:5,right:5,bottom:0,left:10}}>
-                  <XAxis dataKey="label" tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}
+                  <XAxis dataKey="label" tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
                     tickFormatter={v=>String(v).slice(0,3)}/>
-                  <YAxis tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}
+                  <YAxis tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
                     domain={[0,100]} tickFormatter={v=>v+"%"}/>
-                  <Tooltip contentStyle={{background:"#141C28",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",fontSize:"12px",fontFamily:"JetBrains Mono"}}/>
-                  <Line type="monotone" dataKey="winRate" name="Win %" stroke="#4D8EFF" strokeWidth={2} dot={{fill:"#4D8EFF",r:4}}/>
+                  <Tooltip contentStyle={{background:"#FFFFFF",border:"1px solid rgba(0,0,0,0.1)",borderRadius:"10px",fontSize:"12px",fontFamily:"JetBrains Mono"}}/>
+                  <Line type="monotone" dataKey="winRate" name="Win %" stroke="#6366F1" strokeWidth={2} dot={{fill:"#6366F1",r:4}}/>
                 </LineChart>
               </ResponsiveContainer>
             </Card>

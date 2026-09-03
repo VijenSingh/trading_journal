@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#05070D",
+  themeColor: "#F5F3FF",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -39,15 +39,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           position="bottom-right"
           toastOptions={{
             style: {
-              background: "#141C28",
-              color: "#E8EDF5",
-              border: "1px solid rgba(255,255,255,0.1)",
+              background: "#FFFFFF",
+              color: "#1E1B2E",
+              border: "1px solid rgba(0,0,0,0.1)",
               borderRadius: "10px",
               fontFamily: "'Inter', sans-serif",
               fontSize: "13px",
             },
-            success: { iconTheme: { primary: "#00E676", secondary: "#05070D" } },
-            error: { iconTheme: { primary: "#FF4560", secondary: "#05070D" } },
+            success: { iconTheme: { primary: "#10B981", secondary: "#F5F3FF" } },
+            error: { iconTheme: { primary: "#F43F5E", secondary: "#F5F3FF" } },
           }}
         />
       </body>

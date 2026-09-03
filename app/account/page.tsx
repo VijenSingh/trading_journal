@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Calendar, BarChart2, Wallet, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import YearHeatmap from "@/components/YearHeatmap";
 
 interface Txn { _id: string; date: string; type: "deposit" | "withdrawal"; amount: number; note: string; }
 
@@ -148,7 +149,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   const cum = payload.find((p: any) => p.dataKey === "cumulative");
   const daily = payload.find((p: any) => p.dataKey === "dailyPnl");
   return (
-    <div className="bg-bg-700 border border-white/10 rounded-xl p-3 text-xs font-mono shadow-card min-w-[160px]">
+    <div className="bg-bg-700 border border-black/10 rounded-xl p-3 text-xs font-mono shadow-card min-w-[160px]">
       <div className="text-ink-300 mb-2 font-sans text-[11px]">{label}</div>
       {cum && (
         <div className={`font-semibold ${Number(cum.value) >= 0 ? "text-green" : "text-red"}`}>
@@ -223,7 +224,7 @@ function TradingCalendar({ dailyData }: {
         </div>
       </div>
 
-      <div className="h-px bg-white/[0.05] my-4" />
+      <div className="h-px bg-black/[0.05] my-4" />
 
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1.5 mb-1.5">
@@ -295,7 +296,7 @@ function TradingCalendar({ dailyData }: {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 mt-4 pt-4 border-t border-white/[0.05] flex-wrap">
+      <div className="flex items-center gap-6 mt-4 pt-4 border-t border-black/[0.05] flex-wrap">
         <span className="flex items-center gap-2 text-[11px] text-ink-400">
           <span className="w-3 h-3 rounded bg-green/40" /> Profit Day
         </span>
@@ -456,25 +457,25 @@ export default function AccountPage() {
             <AreaChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: 15 }}>
               <defs>
                 <linearGradient id="cumGreenGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#00E676" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#00E676" stopOpacity={0.02} />
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
                 </linearGradient>
                 <linearGradient id="cumRedGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF4560" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#FF4560" stopOpacity={0.02} />
+                  <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#F43F5E" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.03)" vertical={false} />
 
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 10, fill: "#4A5870", fontFamily: "JetBrains Mono" }}
+                tick={{ fontSize: 10, fill: "#8B85A0", fontFamily: "JetBrains Mono" }}
                 axisLine={false} tickLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "#4A5870", fontFamily: "JetBrains Mono" }}
+                tick={{ fontSize: 10, fill: "#8B85A0", fontFamily: "JetBrains Mono" }}
                 axisLine={false} tickLine={false}
                 domain={[yMin - yPadding, yMax + yPadding]}
                 tickFormatter={v => {
@@ -486,17 +487,17 @@ export default function AccountPage() {
               <Tooltip content={<ChartTooltip />} />
 
               {/* Zero reference line */}
-              <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+              <ReferenceLine y={0} stroke="rgba(0,0,0,0.1)" strokeWidth={1} />
 
               <Area
                 type="monotone"
                 dataKey="cumulative"
                 name="Cumulative P&L"
-                stroke={isPositive ? "#00E676" : "#FF4560"}
+                stroke={isPositive ? "#10B981" : "#F43F5E"}
                 fill={isPositive ? "url(#cumGreenGrad)" : "url(#cumRedGrad)"}
                 strokeWidth={2.5}
-                dot={chartData.length <= 15 ? { fill: isPositive ? "#00E676" : "#FF4560", r: 4, strokeWidth: 0 } : false}
-                activeDot={{ r: 6, fill: isPositive ? "#00E676" : "#FF4560", strokeWidth: 0 }}
+                dot={chartData.length <= 15 ? { fill: isPositive ? "#10B981" : "#F43F5E", r: 4, strokeWidth: 0 } : false}
+                activeDot={{ r: 6, fill: isPositive ? "#10B981" : "#F43F5E", strokeWidth: 0 }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -504,7 +505,7 @@ export default function AccountPage() {
 
         {/* Below chart — daily breakdown mini stats */}
         {chartData.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-white/[0.05] grid grid-cols-4 gap-4">
+          <div className="mt-4 pt-4 border-t border-black/[0.05] grid grid-cols-4 gap-4">
             {[
               { label: "Total Profit Days", value: `${profitDays} days`, color: "text-green" },
               { label: "Total Loss Days", value: `${lossDays} days`, color: "text-red" },
@@ -538,7 +539,7 @@ export default function AccountPage() {
                       style={{ width: `${pct}%`, background: isPos ? "rgba(0,230,118,0.45)" : "rgba(255,69,96,0.45)" }}
                     />
                     <span className="absolute inset-0 flex items-center px-3 text-[11px] font-mono font-semibold"
-                      style={{ color: isPos ? "#00E676" : "#FF4560" }}>
+                      style={{ color: isPos ? "#10B981" : "#F43F5E" }}>
                       {isPos ? "+" : ""}₹{Math.abs(d.dailyPnl).toLocaleString("en-IN")}
                     </span>
                   </div>
@@ -554,6 +555,9 @@ export default function AccountPage() {
           </div>
         </Card>
       )}
+
+      {/* Yearly Heatmap */}
+      <YearHeatmap trades={trades} />
 
       {/* Trading Calendar */}
       <TradingCalendar dailyData={dailyMap} />

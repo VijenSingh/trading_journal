@@ -103,7 +103,7 @@ export default function CalculatorPage() {
                 <div className="text-3xl font-bold font-mono text-green">{lot.toFixed(2)}</div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.05]">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/[0.05]">
               <div>
                 <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-1">Risk Amount</div>
                 <div className="text-sm font-mono font-semibold text-red">-₹{riskAmount.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</div>
@@ -121,7 +121,7 @@ export default function CalculatorPage() {
               {rewardTargets.map(r => (
                 <div key={r.rr} className={cn(
                   "p-3 rounded-xl border text-center",
-                  r.rr >= 2 ? "bg-green/5 border-green/20" : "bg-bg-700 border-white/[0.06]"
+                  r.rr >= 2 ? "bg-green/5 border-green/20" : "bg-bg-700 border-black/[0.06]"
                 )}>
                   <div className="text-[10px] text-ink-400 mb-1">1:{r.rr}</div>
                   <div className="text-sm font-mono font-bold text-green">+₹{r.reward.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</div>

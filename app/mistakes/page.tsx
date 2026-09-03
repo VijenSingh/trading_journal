@@ -58,7 +58,7 @@ export default function MistakesPage() {
   const displayDate = new Date(today).toLocaleDateString("en-IN", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
 
   const scoreColor = pct >= 75 ? "text-green" : pct >= 50 ? "text-amber" : "text-red";
-  const ringColor = pct >= 75 ? "#00E676" : pct >= 50 ? "#FFB020" : "#FF4560";
+  const ringColor = pct >= 75 ? "#10B981" : pct >= 50 ? "#F59E0B" : "#F43F5E";
 
   return (
     <div className="p-4 md:p-8 page-transition max-w-4xl">
@@ -74,7 +74,7 @@ export default function MistakesPage() {
           {/* Circle */}
           <div className="relative w-28 h-28 flex-shrink-0">
             <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8"/>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(0,0,0,0.05)" strokeWidth="8"/>
               <circle cx="50" cy="50" r="42" fill="none" stroke={ringColor} strokeWidth="8"
                 strokeLinecap="round" strokeDasharray={`${2*Math.PI*42}`}
                 strokeDashoffset={`${2*Math.PI*42*(1-pct/100)}`}
@@ -119,7 +119,7 @@ export default function MistakesPage() {
                 "text-left p-5 rounded-2xl border transition-all duration-200 flex items-start gap-4",
                 ok
                   ? "bg-green/8 border-green/25 shadow-glow"
-                  : "bg-bg-800 border-white/[0.06] hover:bg-bg-700 hover:border-white/10"
+                  : "bg-bg-800 border-black/[0.06] hover:bg-bg-700 hover:border-black/10"
               )}>
 
               {/* Check circle */}
@@ -127,7 +127,7 @@ export default function MistakesPage() {
                 "w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all",
                 ok ? "bg-green border-green" : "border-ink-500"
               )}>
-                {ok && <span className="text-bg-950 text-xs font-bold">✓</span>}
+                {ok && <span className="text-white text-xs font-bold">✓</span>}
               </div>
 
               <div className="flex-1">

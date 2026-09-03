@@ -63,14 +63,14 @@ export const STRATEGIES = [
 export const SESSIONS = ["Asian","London","New York","London-NY Overlap","Pre-Market"];
 
 export const EMOTIONS = [
-  { value:"calm",        label:"😌 Calm",          color:"#00E676" },
-  { value:"disciplined", label:"✅ Disciplined",    color:"#00E676" },
-  { value:"patient",     label:"🧘 Patient",        color:"#4D8EFF" },
-  { value:"greedy",      label:"🤑 Greedy",         color:"#FFB020" },
-  { value:"overconfident",label:"💪 Overconfident", color:"#FFB020" },
-  { value:"fearful",     label:"😰 Fearful",        color:"#4D8EFF" },
-  { value:"fomo",        label:"😱 FOMO",           color:"#FF4560" },
-  { value:"revengeful",  label:"😤 Revenge",        color:"#FF4560" },
+  { value:"calm",        label:"😌 Calm",          color:"#10B981" },
+  { value:"disciplined", label:"✅ Disciplined",    color:"#10B981" },
+  { value:"patient",     label:"🧘 Patient",        color:"#6366F1" },
+  { value:"greedy",      label:"🤑 Greedy",         color:"#F59E0B" },
+  { value:"overconfident",label:"💪 Overconfident", color:"#F59E0B" },
+  { value:"fearful",     label:"😰 Fearful",        color:"#6366F1" },
+  { value:"fomo",        label:"😱 FOMO",           color:"#F43F5E" },
+  { value:"revengeful",  label:"😤 Revenge",        color:"#F43F5E" },
 ];
 
 // ── Pip value per standard lot for common pairs ──────────────────────

@@ -105,7 +105,7 @@ export default function MindsetPage() {
               <button key={i} type="button" onClick={()=>toggle(i)}
                 className={cn(
                   "text-left p-5 rounded-2xl border transition-all group",
-                  read ? "bg-green/8 border-green/25" : "bg-bg-800 border-white/[0.06] hover:bg-bg-700"
+                  read ? "bg-green/8 border-green/25" : "bg-bg-800 border-black/[0.06] hover:bg-bg-700"
                 )}>
                 <div className="flex items-start gap-4">
                   <div className={cn(

@@ -39,7 +39,7 @@ const pairShort = (pair: unknown): string => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-bg-700 border border-white/10 rounded-xl p-3 text-xs font-mono shadow-card">
+    <div className="bg-bg-700 border border-black/10 rounded-xl p-3 text-xs font-mono shadow-card">
       <div className="text-ink-300 mb-1">{label}</div>
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color }}>
@@ -140,7 +140,7 @@ export default function DashboardClient() {
           </button>
         )}
         <Link href="/trade/new">
-          <button className="flex items-center gap-2 px-4 py-2 bg-green text-bg-950 rounded-xl text-sm font-semibold hover:brightness-110 transition-all shadow-glow">
+          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple to-pink text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all shadow-glow-purple">
             <Plus size={16} /> New Trade
           </button>
         </Link>
@@ -223,16 +223,16 @@ export default function DashboardClient() {
               <AreaChart data={cumData} margin={{ top: 5, right: 5, bottom: 0, left: 10 }}>
                 <defs>
                   <linearGradient id="cumGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={a.totalPnl >= 0 ? "#00E676" : "#FF4560"} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={a.totalPnl >= 0 ? "#00E676" : "#FF4560"} stopOpacity={0} />
+                    <stop offset="5%" stopColor={a.totalPnl >= 0 ? "#10B981" : "#F43F5E"} stopOpacity={0.2} />
+                    <stop offset="95%" stopColor={a.totalPnl >= 0 ? "#10B981" : "#F43F5E"} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#4A5870" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#4A5870" }} axisLine={false} tickLine={false}
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
                   tickFormatter={v => "₹" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="cumulative" name="P&L"
-                  stroke={a.totalPnl >= 0 ? "#00E676" : "#FF4560"}
+                  stroke={a.totalPnl >= 0 ? "#10B981" : "#F43F5E"}
                   fill="url(#cumGrad)" strokeWidth={2} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
@@ -256,12 +256,12 @@ export default function DashboardClient() {
                     cx="50%" cy="50%" innerRadius={50} outerRadius={75}
                     paddingAngle={3} dataKey="value"
                   >
-                    <Cell fill="#00E676" opacity={0.85} />
-                    <Cell fill="#FF4560" opacity={0.85} />
+                    <Cell fill="#10B981" opacity={0.85} />
+                    <Cell fill="#F43F5E" opacity={0.85} />
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      background: "#141C28", border: "1px solid rgba(255,255,255,0.1)",
+                      background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.1)",
                       borderRadius: "10px", fontSize: "12px", fontFamily: "JetBrains Mono",
                     }}
                   />
@@ -291,14 +291,14 @@ export default function DashboardClient() {
           {monthStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={monthStats} margin={{ top: 5, right: 5, bottom: 0, left: 10 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#4A5870" }} axisLine={false} tickLine={false}
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
                   tickFormatter={v => sp(v).slice(0, 3)} />
-                <YAxis tick={{ fontSize: 10, fill: "#4A5870" }} axisLine={false} tickLine={false}
+                <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
                   tickFormatter={v => "₹" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                   {monthStats.map((m, i) => (
-                    <Cell key={i} fill={np(m.pnl) >= 0 ? "#00E676" : "#FF4560"} opacity={0.8} />
+                    <Cell key={i} fill={np(m.pnl) >= 0 ? "#10B981" : "#F43F5E"} opacity={0.8} />
                   ))}
                 </Bar>
               </BarChart>
@@ -326,7 +326,7 @@ export default function DashboardClient() {
                     </div>
                     <div className="h-1.5 bg-bg-600 rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, background: pnl >= 0 ? "#00E676" : "#FF4560", opacity: 0.7 }} />
+                        style={{ width: `${pct}%`, background: pnl >= 0 ? "#10B981" : "#F43F5E", opacity: 0.7 }} />
                     </div>
                   </div>
                 );
@@ -358,7 +358,7 @@ export default function DashboardClient() {
           <div className="overflow-x-auto -mx-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/[0.05]">
+                <tr className="border-b border-black/[0.05]">
                   {["Date", "Pair", "Type", "Lot", "Entry", "Exit", "P&L", "Strategy", "Result"].map(h => (
                     <th key={h} className="text-left py-2.5 px-3 text-[10px] font-semibold text-ink-400 uppercase tracking-widest">{h}</th>
                   ))}
@@ -370,7 +370,7 @@ export default function DashboardClient() {
                   const pair = pairShort(t.pair);
                   const type = sp(t.type) || "BUY";
                   return (
-                    <tr key={sp(t._id) || idx} className="tr-hover border-b border-white/[0.03] last:border-0">
+                    <tr key={sp(t._id) || idx} className="tr-hover border-b border-black/[0.03] last:border-0">
                       <td className="py-3 px-3 text-ink-400 font-mono text-xs">{sp(t.date) || "—"}</td>
                       <td className="py-3 px-3 font-semibold text-ink-100">{pair}</td>
                       <td className="py-3 px-3">

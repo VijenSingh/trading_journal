@@ -114,6 +114,66 @@ export function getAnalytics(trades: Trade[]) {
     worstPair: pe.length ? [...pe].sort((a, b) => a[1] - b[1])[0][0] : "—",
   };
 }
+// ─── Day-level aggregation (P&L per calendar day) ───────────────────────────
+export interface DayBucket { date: string; pnl: number; trades: number }
+export function getDailyBuckets(trades: Trade[]): DayBucket[] {
+  const map: Record<string, DayBucket> = {};
+  trades.forEach(t => {
+    const d = s(t.date);
+    if (!d) return;
+    if (!map[d]) map[d] = { date: d, pnl: 0, trades: 0 };
+    map[d].pnl += n(t.pnl);
+    map[d].trades++;
+  });
+  return Object.values(map);
+}
+
+const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export interface RowStat { key: string; label: string; pnl: number; pct: number; days: number; best: number; worst: number }
+
+// Performance broken down by weekday, aggregated at the day level (not per-trade).
+export function getDayOfWeekStats(trades: Trade[]): RowStat[] {
+  const daily = getDailyBuckets(trades);
+  const totalPnl = daily.reduce((s, d) => s + d.pnl, 0);
+  const buckets: Record<number, DayBucket[]> = {};
+  daily.forEach(d => {
+    const dow = new Date(d.date + "T00:00:00").getDay();
+    (buckets[dow] ||= []).push(d);
+  });
+  return DOW_NAMES.map((label, i) => {
+    const ds = buckets[i] || [];
+    const pnl = ds.reduce((s, d) => s + d.pnl, 0);
+    return {
+      key: String(i), label,
+      pnl, pct: totalPnl ? (pnl / totalPnl) * 100 : 0,
+      days: ds.length,
+      best: ds.length ? Math.max(...ds.map(d => d.pnl)) : 0,
+      worst: ds.length ? Math.min(...ds.map(d => d.pnl)) : 0,
+    };
+  });
+}
+
+// Performance broken down by month, aggregated at the day level (not per-trade).
+export function getMonthTableStats(trades: Trade[]): RowStat[] {
+  const daily = getDailyBuckets(trades);
+  const totalPnl = daily.reduce((s, d) => s + d.pnl, 0);
+  const buckets: Record<string, DayBucket[]> = {};
+  daily.forEach(d => { const m = d.date.slice(0, 7); (buckets[m] ||= []).push(d); });
+  return Object.entries(buckets)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, ds]) => {
+      const pnl = ds.reduce((s, d) => s + d.pnl, 0);
+      return {
+        key: month, label: getMonthLabel(month),
+        pnl, pct: totalPnl ? (pnl / totalPnl) * 100 : 0,
+        days: ds.length,
+        best: Math.max(...ds.map(d => d.pnl)),
+        worst: Math.min(...ds.map(d => d.pnl)),
+      };
+    });
+}
+
 export function getMistakeFreq(trades: Trade[]) {
   const f: Record<number, number> = {};
   trades.forEach(t => (t.mistakes || []).forEach(m => { f[m] = (f[m] || 0) + 1; }));

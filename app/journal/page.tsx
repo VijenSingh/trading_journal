@@ -151,7 +151,7 @@ export default function JournalPage() {
             const isOpen = open === t._id;
             const madesMistakes = t.mistakes?.map(id=>MISTAKES.find(m=>m.id===id)?.name).filter(Boolean);
             return (
-              <Card key={t._id} className={cn("transition-all", isOpen?"border-white/10":"")}>
+              <Card key={t._id} className={cn("transition-all", isOpen?"border-black/10":"")}>
                 {/* Header row */}
                 <button
                   type="button"
@@ -172,7 +172,7 @@ export default function JournalPage() {
 
                 {/* Expanded body */}
                 {isOpen && (
-                  <div className="px-4 pb-4 border-t border-white/[0.05] pt-4 space-y-5 animate-fade-in">
+                  <div className="px-4 pb-4 border-t border-black/[0.05] pt-4 space-y-5 animate-fade-in">
                     {/* Price details */}
                     <div className="grid grid-cols-6 gap-3">
                       {[["Lot",t.lot],["Entry",t.entry],["Stop Loss",t.sl],["Target",t.target],["Exit",t.exit],["R:R",t.rr||"—"]].map(([k,v])=>(
@@ -188,14 +188,14 @@ export default function JournalPage() {
                       <div>
                         <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-2">Chart Screenshot</div>
                         <img src={t.screenshot} alt="Trade screenshot" onClick={() => window.open(t.screenshot, "_blank")}
-                          className="max-h-48 rounded-xl border border-white/[0.06] cursor-zoom-in hover:opacity-90 transition-opacity" />
+                          className="max-h-48 rounded-xl border border-black/[0.06] cursor-zoom-in hover:opacity-90 transition-opacity" />
                       </div>
                     )}
 
                     {/* Tags */}
                     {t.tags?.length>0 && (
                       <div className="flex gap-2 flex-wrap">
-                        {t.tags.map(tag=><span key={tag} className="text-[10px] bg-bg-700 text-ink-300 px-2 py-1 rounded-lg border border-white/[0.06]">#{tag}</span>)}
+                        {t.tags.map(tag=><span key={tag} className="text-[10px] bg-bg-700 text-ink-300 px-2 py-1 rounded-lg border border-black/[0.06]">#{tag}</span>)}
                       </div>
                     )}
 

@@ -1,22 +1,23 @@
 "use client";
 import { useState } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { getAnalytics, getCumulative, getMistakeFreq, fmt, formatPnl, cn } from "@/lib/utils";
+import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, cn } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
+import PerformanceTable from "@/components/PerformanceTable";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar,
+  AreaChart, Area, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar,
 } from "recharts";
 
 const TT = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-bg-700 border border-white/10 rounded-xl p-3 text-xs font-mono shadow-card">
+    <div className="bg-bg-700 border border-black/10 rounded-xl p-3 text-xs font-mono shadow-card">
       <div className="text-ink-300 mb-1">{label}</div>
       {payload.map((p: any, i: number) => (
-        <div key={i} style={{ color: p.color || "#E8EDF5" }}>
+        <div key={i} style={{ color: p.color || "#1E1B2E" }}>
           {p.name}: {typeof p.value === "number"
             ? (p.value >= 0 ? "+" : "") + "₹" + Math.abs(p.value).toLocaleString("en-IN")
             : p.value}
@@ -74,17 +75,9 @@ export default function AnalyticsPage() {
     .map(([name, d]) => ({ name, ...d, winRate: Math.round(d.wins / d.trades * 100) }))
     .sort((a, b) => b.pnl - a.pnl);
 
-  // Day of week
-  const dayPnl: Record<string, { pnl: number; count: number }> = {};
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  trades.forEach(t => {
-    if (!t.date) return;
-    const d = days[new Date(String(t.date)).getDay()];
-    if (!dayPnl[d]) dayPnl[d] = { pnl: 0, count: 0 };
-    dayPnl[d].pnl += Number(t.pnl) || 0;
-    dayPnl[d].count++;
-  });
-  const dayData = days.map(d => ({ name: d, ...(dayPnl[d] || { pnl: 0, count: 0 }) }));
+  // Day of week / month performance (day-level aggregation)
+  const dowStats = getDayOfWeekStats(trades);
+  const monthTableStats = getMonthTableStats(trades);
 
   // Radar
   const radarData = [
@@ -124,15 +117,15 @@ export default function AnalyticsPage() {
                   <AreaChart data={cumData} margin={{ top:5,right:5,bottom:0,left:10 }}>
                     <defs>
                       <linearGradient id="eq" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00E676" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#00E676" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="name" tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}
+                    <XAxis dataKey="name" tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
                       tickFormatter={v=>"₹"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
                     <Tooltip content={<TT />} />
-                    <Area type="monotone" dataKey="cumulative" name="P&L" stroke="#00E676" fill="url(#eq)" strokeWidth={2} dot={false}/>
+                    <Area type="monotone" dataKey="cumulative" name="P&L" stroke="#10B981" fill="url(#eq)" strokeWidth={2} dot={false}/>
                   </AreaChart>
                 </ResponsiveContainer>
               ) : <EmptyState icon="📈" title="Chart ke liye aur data chahiye" />}
@@ -142,58 +135,53 @@ export default function AnalyticsPage() {
               <CardTitle>Trader Scorecard</CardTitle>
               <ResponsiveContainer width="100%" height={220}>
                 <RadarChart data={radarData} margin={{top:10,right:10,bottom:10,left:10}}>
-                  <PolarGrid stroke="rgba(255,255,255,0.06)" />
-                  <PolarAngleAxis dataKey="metric" tick={{fontSize:9,fill:"#4A5870"}}/>
-                  <Radar dataKey="value" stroke="#00E676" fill="#00E676" fillOpacity={0.15} strokeWidth={2}/>
+                  <PolarGrid stroke="rgba(0,0,0,0.06)" />
+                  <PolarAngleAxis dataKey="metric" tick={{fontSize:9,fill:"#8B85A0"}}/>
+                  <Radar dataKey="value" stroke="#10B981" fill="#10B981" fillOpacity={0.15} strokeWidth={2}/>
                 </RadarChart>
               </ResponsiveContainer>
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Card className="p-5">
-              <CardTitle>Strategy Performance</CardTitle>
-              {stratData.length > 0 ? (
-                <div className="space-y-3">
-                  {stratData.map(s => {
-                    const maxAbs = Math.max(...stratData.map(x => Math.abs(x.pnl)), 1);
-                    return (
-                      <div key={s.name} className="flex items-center gap-3">
-                        <div className="text-xs font-medium text-ink-200 w-32 truncate">{s.name}</div>
-                        <div className="flex-1 h-6 bg-bg-700 rounded-lg overflow-hidden relative">
-                          <div className="h-full rounded-lg" style={{
-                            width:`${Math.min(100,Math.abs(s.pnl)/maxAbs*100)}%`,
-                            background:s.pnl>=0?"rgba(0,230,118,0.5)":"rgba(255,69,96,0.5)"
-                          }}/>
-                          <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-ink-100">
-                            {s.winRate}% WR · {s.trades}T
-                          </span>
-                        </div>
-                        <div className={`text-xs font-mono font-bold w-20 text-right ${s.pnl>=0?"text-green":"text-red"}`}>
-                          {formatPnl(s.pnl)}
-                        </div>
+          <Card className="p-5 mb-6">
+            <CardTitle>Strategy Performance</CardTitle>
+            {stratData.length > 0 ? (
+              <div className="space-y-3">
+                {stratData.map(s => {
+                  const maxAbs = Math.max(...stratData.map(x => Math.abs(x.pnl)), 1);
+                  return (
+                    <div key={s.name} className="flex items-center gap-3">
+                      <div className="text-xs font-medium text-ink-200 w-32 truncate">{s.name}</div>
+                      <div className="flex-1 h-6 bg-bg-700 rounded-lg overflow-hidden relative">
+                        <div className="h-full rounded-lg" style={{
+                          width:`${Math.min(100,Math.abs(s.pnl)/maxAbs*100)}%`,
+                          background:s.pnl>=0?"rgba(0,230,118,0.5)":"rgba(255,69,96,0.5)"
+                        }}/>
+                        <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-ink-100">
+                          {s.winRate}% WR · {s.trades}T
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : <EmptyState icon="📋" title="Strategy data nahi" />}
-            </Card>
+                      <div className={`text-xs font-mono font-bold w-20 text-right ${s.pnl>=0?"text-green":"text-red"}`}>
+                        {formatPnl(s.pnl)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : <EmptyState icon="📋" title="Strategy data nahi" />}
+          </Card>
 
-            <Card className="p-5">
-              <CardTitle>Day of Week Performance</CardTitle>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={dayData} margin={{top:5,right:5,bottom:0,left:10}}>
-                  <XAxis dataKey="name" tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{fontSize:10,fill:"#4A5870"}} axisLine={false} tickLine={false}
-                    tickFormatter={v=>"₹"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
-                  <Tooltip content={<TT />}/>
-                  <Bar dataKey="pnl" name="P&L" radius={[4,4,0,0]}>
-                    {dayData.map((d,i)=><Cell key={i} fill={d.pnl>=0?"#00E676":"#FF4560"} opacity={0.75}/>)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
+          <Card className="p-5 mb-6">
+            <CardTitle>Day of Week Performance</CardTitle>
+            <PerformanceTable rows={dowStats} labelHeader="Day" />
+          </Card>
+
+          <Card className="p-5 mb-6">
+            <CardTitle>Month Performance</CardTitle>
+            {monthTableStats.length > 0 ? (
+              <PerformanceTable rows={monthTableStats} labelHeader="Month" />
+            ) : <EmptyState icon="📅" title="Month data nahi" />}
+          </Card>
 
           <Card className="p-5 mb-6">
             <CardTitle>Mistakes Frequency Analysis</CardTitle>
@@ -212,7 +200,7 @@ export default function AnalyticsPage() {
                       {pct}% of trades · {count===0?"✅ Clean!":"⚠️ Needs work"}
                     </div>
                     <div className="mt-2 h-1 bg-bg-600 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{width:`${pct}%`,background:count>0?"#FF4560":"#00E676",opacity:0.7}}/>
+                      <div className="h-full rounded-full" style={{width:`${pct}%`,background:count>0?"#F43F5E":"#10B981",opacity:0.7}}/>
                     </div>
                   </div>
                 );
