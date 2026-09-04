@@ -5,7 +5,7 @@ import { connectDB, PropFirmModel } from "@/lib/db";
 
 const DEFAULT_FIRMS = [
   "Lucid", "Tradify", "FundedNext", "FunderPro", "FunderPro Future",
-  "Funded Squad", "FundingPips", "Instant Funding",
+  "Funded Squad", "FundingPips", "Instant Funding", "Blue Guardian",
 ];
 
 export async function GET() {
