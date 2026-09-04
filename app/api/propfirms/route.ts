@@ -3,7 +3,10 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, PropFirmModel } from "@/lib/db";
 
-const DEFAULT_FIRMS = ["Lucid", "Tradify", "FundedNext"];
+const DEFAULT_FIRMS = [
+  "Lucid", "Tradify", "FundedNext", "FunderPro", "FunderPro Future",
+  "Funded Squad", "FundingPips", "Instant Funding",
+];
 
 export async function GET() {
   try {
