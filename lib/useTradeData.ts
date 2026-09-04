@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Trade } from "./types";
+import { useActiveFirm } from "./activeFirm";
 
 // Global cache-bust counter — increments when data changes
 let globalVersion = Date.now();
@@ -17,13 +18,16 @@ export function useTradeData() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const activeFirm = useActiveFirm();
 
   const fetchTrades = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       // Cache-bust with timestamp so browser never uses stale data
-      const res = await fetch(`/api/analytics?v=${globalVersion}`, {
+      const params = new URLSearchParams({ v: String(globalVersion) });
+      if (activeFirm) params.set("propFirm", activeFirm);
+      const res = await fetch(`/api/analytics?${params.toString()}`, {
         cache: "no-store",
         headers: { "Cache-Control": "no-cache" },
       });
@@ -38,7 +42,7 @@ export function useTradeData() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeFirm]);
 
   useEffect(() => {
     fetchTrades();

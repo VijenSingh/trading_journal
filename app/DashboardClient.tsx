@@ -1,7 +1,8 @@
 "use client";
 import { MISTAKES } from "@/lib/types";
 import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
-import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday } from "@/lib/utils";
+import { useActiveFirm } from "@/lib/activeFirm";
+import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey } from "@/lib/utils";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -10,7 +11,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { MINDSET_STORAGE_KEY, affirmations as mindsetAffirmations } from "@/lib/mindset";
 
 function computeStreak(history: { date: string; avoided: number[] }[]): number {
@@ -52,12 +53,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function DashboardClient() {
   const { trades, loading } = useTradeData();
+  const activeFirm = useActiveFirm();
   const [avoided, setAvoided] = useState<number[]>([]);
   const [streak, setStreak] = useState(0);
   const [mindsetReadToday, setMindsetReadToday] = useState(true); // default true so banner doesn't flash before check
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [weeklyLossLimit, setWeeklyLossLimit] = useState(0);
 
   const loadAvoided = useCallback(() => {
     fetch(`/api/mistakes?date=${getToday()}`, { cache: "no-store" })
@@ -82,24 +85,36 @@ export default function DashboardClient() {
     } catch { setMindsetReadToday(true); }
   }, []);
 
+  const loadWeeklyLimit = useCallback(() => {
+    const firmParam = activeFirm ? `&propFirm=${encodeURIComponent(activeFirm)}` : "";
+    fetch(`/api/goals?periodType=week&periodKey=${getWeekKey()}${firmParam}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => setWeeklyLossLimit(j.data?.maxLossLimit || 0))
+      .catch(() => {});
+  }, [activeFirm]);
+
   useEffect(() => {
     loadAvoided();
     loadStreak();
     checkMindset();
+    loadWeeklyLimit();
     window.addEventListener("trade-data-changed", loadAvoided);
     window.addEventListener("trade-data-changed", loadStreak);
     window.addEventListener("trade-data-changed", checkMindset);
+    window.addEventListener("trade-data-changed", loadWeeklyLimit);
     return () => {
       window.removeEventListener("trade-data-changed", loadAvoided);
       window.removeEventListener("trade-data-changed", loadStreak);
       window.removeEventListener("trade-data-changed", checkMindset);
+      window.removeEventListener("trade-data-changed", loadWeeklyLimit);
     };
-  }, [loadAvoided, loadStreak, checkMindset]);
+  }, [loadAvoided, loadStreak, checkMindset, loadWeeklyLimit]);
 
   const clearAllData = async () => {
     setClearing(true);
     try {
-      const res = await fetch("/api/trades/clear", { method: "DELETE" });
+      const params = activeFirm ? `?propFirm=${encodeURIComponent(activeFirm)}` : "";
+      const res = await fetch(`/api/trades/clear${params}`, { method: "DELETE" });
       const j = await res.json();
       if (j.success) {
         invalidateTradeData();
@@ -109,26 +124,39 @@ export default function DashboardClient() {
     } catch { alert("Error clearing data"); }
     finally { setClearing(false); }
   };
-  const a = getAnalytics(trades);
-  const cumData = getCumulative(trades);
-  const monthStats = getMonthStats(trades).slice(-6);
-  const recent = [...trades]
+  const a = useMemo(() => getAnalytics(trades), [trades]);
+  const cumData = useMemo(() => getCumulative(trades), [trades]);
+  const monthStats = useMemo(() => getMonthStats(trades).slice(-6), [trades]);
+  const recent = useMemo(() => [...trades]
     .sort((x, y) => (y.date + (y.time || "")).localeCompare(x.date + (x.time || "")))
-    .slice(0, 8);
+    .slice(0, 8), [trades]);
   const mistakeScore = (avoided || []).length;
+  const weekPnl = useMemo(() => {
+    const thisWeek = getWeekKey();
+    return trades.filter(t => getWeekKey(t.date) === thisWeek).reduce((s, t) => s + np(t.pnl), 0);
+  }, [trades]);
+  const weekLoss = Math.abs(Math.min(0, weekPnl));
+  const limitBreached = weeklyLossLimit > 0 && weekLoss >= weeklyLossLimit;
+  const limitWarning = weeklyLossLimit > 0 && !limitBreached && weekLoss >= weeklyLossLimit * 0.8;
+  const todayTradeCount = useMemo(
+    () => trades.filter(t => t.date === getToday()).length,
+    [trades]
+  );
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
   // Top pairs by P&L
-  const pairPnl: Record<string, number> = {};
-  trades.forEach(t => {
-    const p = pairShort(t.pair);
-    if (p && p !== "—") pairPnl[p] = (pairPnl[p] || 0) + np(t.pnl);
-  });
-  const topPairs = Object.entries(pairPnl)
-    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-    .slice(0, 5);
+  const topPairs = useMemo(() => {
+    const pairPnl: Record<string, number> = {};
+    trades.forEach(t => {
+      const p = pairShort(t.pair);
+      if (p && p !== "—") pairPnl[p] = (pairPnl[p] || 0) + np(t.pnl);
+    });
+    return Object.entries(pairPnl)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+      .slice(0, 5);
+  }, [trades]);
 
   return (
     <div className="p-4 md:p-8 page-transition">
@@ -147,9 +175,11 @@ export default function DashboardClient() {
         {showClearModal && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowClearModal(false)}>
             <div className="bg-bg-800 border border-red/30 rounded-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
-              <div className="text-lg font-bold text-ink-100 mb-2">⚠️ Saara Data Delete Karein?</div>
+              <div className="text-lg font-bold text-ink-100 mb-2">
+                ⚠️ {activeFirm ? `${activeFirm} Ka Data Delete Karein?` : "Saara Data Delete Karein?"}
+              </div>
               <p className="text-sm text-ink-300 mb-5 leading-relaxed">
-                Ye action <strong className="text-red">undo nahi hoga</strong>. MongoDB se saare {trades.length} trades permanently delete ho jayenge. Sirf karo agar ye test/purana data hai.
+                Ye action <strong className="text-red">undo nahi hoga</strong>. MongoDB se {activeFirm ? `sirf ${activeFirm} firm ke` : "saare"} {trades.length} trades permanently delete ho jayenge. Sirf karo agar ye test/purana data hai.
               </p>
               <div className="flex gap-3">
                 <button onClick={clearAllData} disabled={clearing}
@@ -165,6 +195,35 @@ export default function DashboardClient() {
           </div>
         )}
       </PageHeader>
+
+      {limitBreached && (
+        <div className="flex items-center gap-3 p-4 mb-6 rounded-xl border border-red/30 bg-red/10">
+          <AlertTriangle size={18} className="text-red flex-shrink-0" />
+          <div className="flex-1 text-sm text-ink-200">
+            <span className="font-semibold text-red">🚨 Is hafte ki max loss limit cross ho gayi{activeFirm ? ` (${activeFirm})` : ""}!</span>{" "}
+            Loss: <span className="font-mono font-semibold text-red">-₹{weekLoss.toLocaleString("en-IN")}</span> / ₹{weeklyLossLimit.toLocaleString("en-IN")} limit.
+            Is hafte ke liye trading rok do.
+          </div>
+        </div>
+      )}
+      {!limitBreached && limitWarning && (
+        <div className="flex items-center gap-3 p-4 mb-6 rounded-xl border border-amber/25 bg-amber/8">
+          <AlertTriangle size={18} className="text-amber flex-shrink-0" />
+          <div className="flex-1 text-sm text-ink-200">
+            <span className="font-semibold text-amber">⚠️ Weekly loss limit ke paas ho{activeFirm ? ` (${activeFirm})` : ""}.</span>{" "}
+            Loss: <span className="font-mono font-semibold text-amber">-₹{weekLoss.toLocaleString("en-IN")}</span> / ₹{weeklyLossLimit.toLocaleString("en-IN")} limit. Savdhaan raho.
+          </div>
+        </div>
+      )}
+      {todayTradeCount > 2 && (
+        <div className="flex items-center gap-3 p-4 mb-6 rounded-xl border border-amber/25 bg-amber/8">
+          <AlertTriangle size={18} className="text-amber flex-shrink-0" />
+          <div className="flex-1 text-sm text-ink-200">
+            <span className="font-semibold text-amber">⚠️ Aaj {todayTradeCount} trades ho chuke hain.</span>{" "}
+            Overtrading ek common discipline mistake hai — zaroori na ho to aur trade mat lo.
+          </div>
+        </div>
+      )}
 
       {!mindsetReadToday && !bannerDismissed && (
         <div className="flex items-center gap-3 p-4 mb-6 rounded-xl border border-purple/25 bg-purple/8">

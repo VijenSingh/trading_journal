@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Trade } from "@/lib/types";
 import { formatPnl, cn, getToday } from "@/lib/utils";
 import { useTradeData } from "@/lib/useTradeData";
+import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, Loading, StatCard, Button, Label } from "@/components/ui";
 import {
@@ -15,17 +16,18 @@ import YearHeatmap from "@/components/YearHeatmap";
 
 interface Txn { _id: string; date: string; type: "deposit" | "withdrawal"; amount: number; note: string; }
 
-function BalanceManager({ totalPnl }: { totalPnl: number }) {
+function BalanceManager({ totalPnl, activeFirm }: { totalPnl: number; activeFirm: string }) {
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: getToday(), type: "deposit" as "deposit" | "withdrawal", amount: "", note: "" });
   const [saving, setSaving] = useState(false);
 
-  const load = () => {
-    fetch("/api/balance").then(r => r.json()).then(j => { if (j.success) setTxns(j.data); }).finally(() => setLoading(false));
-  };
-  useEffect(load, []);
+  const load = useCallback(() => {
+    const params = activeFirm ? `?propFirm=${encodeURIComponent(activeFirm)}` : "";
+    fetch(`/api/balance${params}`).then(r => r.json()).then(j => { if (j.success) setTxns(j.data); }).finally(() => setLoading(false));
+  }, [activeFirm]);
+  useEffect(() => { load(); }, [load]);
 
   const deposits = txns.filter(t => t.type === "deposit").reduce((s, t) => s + t.amount, 0);
   const withdrawals = txns.filter(t => t.type === "withdrawal").reduce((s, t) => s + t.amount, 0);
@@ -38,7 +40,7 @@ function BalanceManager({ totalPnl }: { totalPnl: number }) {
     try {
       const res = await fetch("/api/balance", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, amount: amt }),
+        body: JSON.stringify({ ...form, amount: amt, propFirm: activeFirm }),
       });
       const j = await res.json();
       if (!res.ok || !j.success) throw new Error();
@@ -314,12 +316,8 @@ function TradingCalendar({ dailyData }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AccountPage() {
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const { trades: hookTrades, loading: hookLoading } = useTradeData();
-  useEffect(() => { setTrades(hookTrades); }, [hookTrades]);
-  useEffect(() => { setLoading(hookLoading); }, [hookLoading]);
+  const { trades, loading } = useTradeData();
+  const activeFirm = useActiveFirm();
 
   if (loading) return <div className="p-4 md:p-8"><Loading /></div>;
 
@@ -382,7 +380,7 @@ export default function AccountPage() {
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Performance Overview" subtitle="Trade entries se automatic cumulative P&L aur calendar" />
 
-      <BalanceManager totalPnl={totalPnl} />
+      <BalanceManager totalPnl={totalPnl} activeFirm={activeFirm} />
 
       {/* Top stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">

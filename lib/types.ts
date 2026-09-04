@@ -22,6 +22,7 @@ export interface Trade {
   rulesFollowed: string;
   tags: string[];
   screenshot?: string;
+  propFirm?: string;
   createdAt?: string;
 }
 

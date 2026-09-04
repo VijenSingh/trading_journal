@@ -1,4 +1,4 @@
-const CACHE = "tradermind-v1";
+const CACHE = "tradermind-v2";
 const PRECACHE_URLS = ["/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -13,21 +13,21 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Stale-while-revalidate for static assets/pages. Trade data (/api/*) is always network-only — never cached.
+// Network-first for static assets/pages, falling back to cache only when offline.
+// Trade data (/api/*) is always network-only — never cached.
+// (Network-first — not cache-first — so app updates show up immediately instead of
+// being masked by a stale cached copy until the cache name is bumped.)
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (url.pathname.startsWith("/api/")) return;
   if (e.request.method !== "GET") return;
 
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const network = fetch(e.request)
-        .then((res) => {
-          if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(e.request)
+      .then((res) => {
+        if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

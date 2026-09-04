@@ -5,9 +5,10 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, PlusCircle, BookOpen, BarChart3,
   CalendarDays, Target, BookMarked, Brain, TrendingUp,
-  Building2, Menu, X, Calculator,
+  Building2, Menu, X, Calculator, Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import FirmSwitcher from "./FirmSwitcher";
 
 const nav = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -17,6 +18,7 @@ const nav = [
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
   { href: "/monthly", icon: CalendarDays, label: "Monthly P&L" },
+  { href: "/propfirms", icon: Landmark, label: "Prop Firms" },
   { href: "/mistakes", icon: Target, label: "Mistakes" },
   { href: "/rules", icon: BookMarked, label: "Rules" },
   { href: "/mindset", icon: Brain, label: "Mindset" },
@@ -93,6 +95,9 @@ export default function Sidebar() {
         <div className="px-6 py-6 border-b border-black/[0.05]">
           <Logo />
         </div>
+        <div className="pt-3">
+          <FirmSwitcher />
+        </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <NavLinks />
         </nav>
@@ -125,6 +130,9 @@ export default function Sidebar() {
               >
                 <X size={16} />
               </button>
+            </div>
+            <div className="pt-3">
+              <FirmSwitcher />
             </div>
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
               <NavLinks onClose={() => setMobileOpen(false)} />

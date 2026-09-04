@@ -60,9 +60,18 @@ const TradeSchema = new mongoose.Schema(
     rulesFollowed: { type: String, default: "" },
     tags: { type: [String], default: [] },
     screenshot: { type: String, default: "" },
+    propFirm: { type: String, default: "" },
   },
   { timestamps: true }
 );
+TradeSchema.index({ date: -1, time: -1 });
+TradeSchema.index({ pair: 1 });
+TradeSchema.index({ propFirm: 1 });
+
+// ─── PropFirm Schema ─────────────────────────────────────────────────────────
+const PropFirmSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+});
 
 // ─── DailyMistake Schema ─────────────────────────────────────────────────────
 const DailyMistakeSchema = new mongoose.Schema({
@@ -74,10 +83,11 @@ const DailyMistakeSchema = new mongoose.Schema({
 const GoalSchema = new mongoose.Schema({
   periodType: { type: String, enum: ["month", "week"], required: true },
   periodKey: { type: String, required: true }, // "2026-09" for month, "2026-W36" for week
+  propFirm: { type: String, default: "" },
   targetPnl: { type: Number, default: 0 },
   maxLossLimit: { type: Number, default: 0 },
 });
-GoalSchema.index({ periodType: 1, periodKey: 1 }, { unique: true });
+GoalSchema.index({ periodType: 1, periodKey: 1, propFirm: 1 }, { unique: true });
 
 // ─── Balance Transaction Schema (deposits / withdrawals) ───────────────────
 const TransactionSchema = new mongoose.Schema(
@@ -86,12 +96,29 @@ const TransactionSchema = new mongoose.Schema(
     type: { type: String, enum: ["deposit", "withdrawal"], required: true },
     amount: { type: Number, required: true },
     note: { type: String, default: "" },
+    propFirm: { type: String, default: "" },
   },
   { timestamps: true }
 );
 
+// ─── PropFirm Account Transaction Schema (challenge investment / payout) ────
+const AccountTxnSchema = new mongoose.Schema(
+  {
+    propFirm: { type: String, required: true },
+    type: { type: String, enum: ["investment", "payout"], required: true },
+    amount: { type: Number, required: true },
+    date: { type: String, required: true },
+    note: { type: String, default: "" },
+  },
+  { timestamps: true }
+);
+AccountTxnSchema.index({ propFirm: 1 });
+
 export const TradeModel =
   mongoose.models.Trade || mongoose.model("Trade", TradeSchema);
+
+export const PropFirmModel =
+  mongoose.models.PropFirm || mongoose.model("PropFirm", PropFirmSchema);
 
 export const DailyMistakeModel =
   mongoose.models.DailyMistake ||
@@ -102,3 +129,6 @@ export const GoalModel =
 
 export const TransactionModel =
   mongoose.models.Transaction || mongoose.model("Transaction", TransactionSchema);
+
+export const AccountTxnModel =
+  mongoose.models.AccountTxn || mongoose.model("AccountTxn", AccountTxnSchema);

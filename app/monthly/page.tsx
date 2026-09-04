@@ -5,11 +5,12 @@ import { getMonthStats, formatPnl, fmt, cn, getThisMonth, getWeekKey } from "@/l
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading, Badge, Button, Label } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
+import { useActiveFirm } from "@/lib/activeFirm";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from "recharts";
 import { Target } from "lucide-react";
 import toast from "react-hot-toast";
 
-function GoalsCard({ trades }: { trades: Trade[] }) {
+function GoalsCard({ trades, activeFirm }: { trades: Trade[]; activeFirm: string }) {
   const thisMonth = getThisMonth();
   const thisWeek = getWeekKey();
   const [targetPnl, setTargetPnl] = useState("");
@@ -19,19 +20,19 @@ function GoalsCard({ trades }: { trades: Trade[] }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/goals?periodType=month&periodKey=${thisMonth}`).then(r => r.json())
+    const firmParam = activeFirm ? `&propFirm=${encodeURIComponent(activeFirm)}` : "";
+    fetch(`/api/goals?periodType=month&periodKey=${thisMonth}${firmParam}`).then(r => r.json())
       .then(j => { if (j.success) setTargetPnl(j.data.targetPnl ? String(j.data.targetPnl) : ""); });
-    fetch(`/api/goals?periodType=week&periodKey=${thisWeek}`).then(r => r.json())
+    fetch(`/api/goals?periodType=week&periodKey=${thisWeek}${firmParam}`).then(r => r.json())
       .then(j => { if (j.success) setMaxLossLimit(j.data.maxLossLimit ? String(j.data.maxLossLimit) : ""); });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeFirm, thisMonth, thisWeek]);
 
   const saveTarget = async () => {
     setSaving(true);
     try {
       await fetch("/api/goals", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodType: "month", periodKey: thisMonth, targetPnl: parseFloat(targetPnl) || 0 }),
+        body: JSON.stringify({ periodType: "month", periodKey: thisMonth, propFirm: activeFirm, targetPnl: parseFloat(targetPnl) || 0 }),
       });
       toast.success("Monthly target saved ✅");
       setEditingTarget(false);
@@ -44,7 +45,7 @@ function GoalsCard({ trades }: { trades: Trade[] }) {
     try {
       await fetch("/api/goals", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodType: "week", periodKey: thisWeek, maxLossLimit: parseFloat(maxLossLimit) || 0 }),
+        body: JSON.stringify({ periodType: "week", periodKey: thisWeek, propFirm: activeFirm, maxLossLimit: parseFloat(maxLossLimit) || 0 }),
       });
       toast.success("Weekly loss limit saved ✅");
       setEditingLimit(false);
@@ -144,6 +145,7 @@ const TT = ({ active, payload, label }: any) => {
 
 export default function MonthlyPage() {
   const { trades, loading } = useTradeData();
+  const activeFirm = useActiveFirm();
 
   if (loading) return <div className="p-4 md:p-8"><Loading /></div>;
 
@@ -156,7 +158,7 @@ export default function MonthlyPage() {
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Monthly P&L" subtitle={`${trades.length} trades · ${stats.length} months`} />
 
-      <GoalsCard trades={trades} />
+      <GoalsCard trades={trades} activeFirm={activeFirm} />
 
       {trades.length === 0 ? (
         <EmptyState icon="📅" title="Koi data nahi" sub="Trades log karo!" />

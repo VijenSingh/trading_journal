@@ -6,12 +6,13 @@ import { Card, Button, Label } from "@/components/ui";
 import { PAIRS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, PIP_VALUES, Trade } from "@/lib/types";
 import { getToday, getNow, cn, compressImage } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
+import { getActiveFirm } from "@/lib/activeFirm";
 import { Save, X, Zap, PenLine, CheckCircle2, ImagePlus, Trash2 } from "lucide-react";
 
 const defaultForm = {
   date: "", time: "", pair: "", customPair: "", type: "BUY" as "BUY" | "SELL",
   lot: "", entry: "", sl: "", target: "", exit: "", pnl: "",
-  pips: "", rr: "", strategy: "", session: "", emotion: "",
+  pips: "", rr: "", strategy: "", session: "", emotion: "", propFirm: "",
   reasoning: "", lesson: "", rulesFollowed: "", tags: "",
 };
 
@@ -37,7 +38,7 @@ function tradeToForm(t: Trade) {
     sl: t.sl ? String(t.sl) : "", target: t.target ? String(t.target) : "",
     exit: t.exit ? String(t.exit) : "", pnl: t.pnl != null ? String(t.pnl) : "",
     pips: t.pips ? String(t.pips) : "", rr: t.rr ? String(t.rr) : "",
-    strategy: t.strategy || "", session: t.session || "", emotion: t.emotion || "",
+    strategy: t.strategy || "", session: t.session || "", emotion: t.emotion || "", propFirm: t.propFirm || "",
     reasoning: t.reasoning || "", lesson: t.lesson || "", rulesFollowed: t.rulesFollowed || "",
     tags: (t.tags || []).join(", "),
   };
@@ -47,8 +48,9 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const router = useRouter();
   const isEdit = !!tradeId;
   const [form, setForm] = useState(
-    initialTrade ? tradeToForm(initialTrade) : { ...defaultForm, date: getToday(), time: getNow() }
+    initialTrade ? tradeToForm(initialTrade) : { ...defaultForm, date: getToday(), time: getNow(), propFirm: getActiveFirm() }
   );
+  const [firms, setFirms] = useState<string[]>([]);
   const [selectedMistakes, setSelectedMistakes] = useState<number[]>(initialTrade?.mistakes || []);
   const [noMistakes, setNoMistakes] = useState(!!initialTrade?.noMistakesFlag);
   const [loading, setLoading] = useState(false);
@@ -58,6 +60,20 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [screenshot, setScreenshot] = useState(initialTrade?.screenshot || "");
   const [compressing, setCompressing] = useState(false);
+  const [todayCount, setTodayCount] = useState(0);
+
+  useEffect(() => {
+    if (isEdit) return;
+    const firm = form.propFirm;
+    const params = firm ? `?propFirm=${encodeURIComponent(firm)}` : "";
+    fetch(`/api/analytics${params}`).then(r => r.json())
+      .then(j => {
+        if (!j.success) return;
+        const count = (j.data || []).filter((t: Trade) => t.date === getToday()).length;
+        setTodayCount(count);
+      }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, form.propFirm]);
 
   const handleScreenshot = async (file: File | null) => {
     if (!file) return;
@@ -73,6 +89,28 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const set = (k: string, v: string) => {
     setForm(f => ({ ...f, [k]: v }));
     if (errors[k]) setErrors(e => ({ ...e, [k]: "" }));
+  };
+
+  useEffect(() => {
+    fetch("/api/propfirms").then(r => r.json()).then(j => { if (j.success) setFirms(j.data); }).catch(() => {});
+  }, []);
+
+  const handlePropFirmChange = async (v: string) => {
+    if (v === "__new__") {
+      const name = window.prompt("Naya prop firm ka naam likho:");
+      const trimmed = name?.trim();
+      if (!trimmed) return;
+      try {
+        await fetch("/api/propfirms", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        setFirms(f => f.includes(trimmed) ? f : [...f, trimmed].sort());
+        set("propFirm", trimmed);
+      } catch { toast.error("Firm add nahi ho paya"); }
+      return;
+    }
+    set("propFirm", v);
   };
 
   // ── Auto-calculate P&L whenever entry/exit/lot/pair/type change ──
@@ -142,6 +180,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const validate = () => {
     const e: Record<string, string> = {};
     if (!getPair()) e.pair = "Pair select karo";
+    if (!form.propFirm) e.propFirm = "Prop firm select karo";
     if (!form.session) e.session = "Session select karo";
     if (!form.lot || parseFloat(form.lot) <= 0) e.lot = "Lot size enter karo";
     if (!form.entry || parseFloat(form.entry) <= 0) e.entry = "Entry price enter karo";
@@ -186,6 +225,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         rulesFollowed: form.rulesFollowed,
         tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
         screenshot,
+        propFirm: form.propFirm,
       };
 
       const res = await fetch(isEdit ? `/api/trades/${tradeId}` : "/api/trades", {
@@ -202,7 +242,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       if (isEdit) {
         setTimeout(() => router.push("/journal"), 500);
       } else {
-        setForm({ ...defaultForm, date: getToday(), time: getNow() });
+        setForm({ ...defaultForm, date: getToday(), time: getNow(), propFirm: getActiveFirm() });
         setSelectedMistakes([]);
         setNoMistakes(false);
         setPnlManualOverride(false);
@@ -220,7 +260,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   };
 
   const handleClear = () => {
-    setForm({ ...defaultForm, date: getToday(), time: getNow() });
+    setForm({ ...defaultForm, date: getToday(), time: getNow(), propFirm: getActiveFirm() });
     setSelectedMistakes([]);
     setNoMistakes(false);
     setPnlManualOverride(false);
@@ -242,6 +282,12 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   return (
     <form onSubmit={handleSubmit} noValidate>
 
+      {!isEdit && todayCount >= 2 && (
+        <div className="mb-5 p-3.5 rounded-xl text-sm font-semibold flex items-center gap-2 border bg-amber/8 text-amber border-amber/20">
+          ⚠️ Aaj {form.propFirm ? `${form.propFirm} mein ` : ""}already {todayCount} trade{todayCount > 1 ? "s" : ""} ho chuke hain — overtrade se bacho.
+        </div>
+      )}
+
       {/* ── Section 1: Trade Details ── */}
       <Card className="p-5 md:p-6 mb-5">
         <div className="text-xs font-semibold text-ink-400 uppercase tracking-widest mb-5 flex items-center gap-2">
@@ -261,6 +307,15 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
               {SESSIONS.map(s => <option key={s}>{s}</option>)}
             </select>
             {errors.session && <span className="text-[11px] text-red">{errors.session}</span>}
+          </FormGroup>
+          <FormGroup label="Prop Firm" required>
+            <select className={inp(!!errors.propFirm)} value={form.propFirm} onChange={e => handlePropFirmChange(e.target.value)}>
+              <option value="">Select prop firm...</option>
+              {form.propFirm && !firms.includes(form.propFirm) && <option value={form.propFirm}>{form.propFirm}</option>}
+              {firms.map(f => <option key={f}>{f}</option>)}
+              <option value="__new__">+ Naya firm add karo...</option>
+            </select>
+            {errors.propFirm && <span className="text-[11px] text-red">{errors.propFirm}</span>}
           </FormGroup>
           <FormGroup label="Pair / Instrument" required>
             <select className={inp(!!errors.pair)} value={form.pair} onChange={e => set("pair", e.target.value)}>
@@ -331,6 +386,15 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
               value={form.rr} onChange={e => set("rr", e.target.value)} />
           </FormGroup>
         </div>
+
+        {(!form.sl || !form.target) && (
+          <div className="mt-4 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 border bg-amber/8 text-amber border-amber/20">
+            ⚠️ {!form.sl && !form.target
+              ? "Stop Loss aur Target dono set nahi kiye"
+              : !form.sl ? "Stop Loss set nahi kiya" : "Target set nahi kiya"}
+            {" "}— bina risk management ke trade lena discipline break karta hai.
+          </div>
+        )}
 
         {form.rr && (
           <div className={cn(

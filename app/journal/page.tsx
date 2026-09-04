@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
 import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
+import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, Badge, EmptyState, Loading, Button } from "@/components/ui";
 import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter, Download } from "lucide-react";
@@ -12,6 +13,7 @@ import Link from "next/link";
 const PAGE_SIZE = 20;
 
 export default function JournalPage() {
+  const activeFirm = useActiveFirm();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -26,13 +28,14 @@ export default function JournalPage() {
 
   const buildParams = useCallback((skip: number) => {
     const params = new URLSearchParams();
+    if (activeFirm) params.set("propFirm", activeFirm);
     if (filterPair) params.set("pair", filterPair);
     if (filterResult) params.set("result", filterResult);
     if (filterMonth) params.set("month", filterMonth);
     params.set("limit", String(PAGE_SIZE));
     params.set("skip", String(skip));
     return params;
-  }, [filterPair, filterResult, filterMonth]);
+  }, [activeFirm, filterPair, filterResult, filterMonth]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,7 +50,9 @@ export default function JournalPage() {
 
   const loadOptions = useCallback(async () => {
     try {
-      const res = await fetch("/api/analytics");
+      const params = new URLSearchParams();
+      if (activeFirm) params.set("propFirm", activeFirm);
+      const res = await fetch("/api/analytics?" + params.toString());
       const json = await res.json();
       const all: Trade[] = json.data || [];
       setAllOptions({
@@ -55,7 +60,7 @@ export default function JournalPage() {
         months: Array.from(new Set(all.map(t => t.date.slice(0, 7)))).sort().reverse(),
       });
     } catch {}
-  }, []);
+  }, [activeFirm]);
 
   const loadMore = async () => {
     setLoadingMore(true);

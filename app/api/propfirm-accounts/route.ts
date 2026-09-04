@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB, TransactionModel } from "@/lib/db";
+import { connectDB, AccountTxnModel } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
     const propFirm = searchParams.get("propFirm");
     const query: Record<string, unknown> = {};
     if (propFirm) query.propFirm = propFirm;
-    const txns = await TransactionModel.find(query).sort({ date: -1, createdAt: -1 }).lean();
+    const txns = await AccountTxnModel.find(query).sort({ date: -1, createdAt: -1 }).lean();
     return NextResponse.json({ success: true, data: txns });
   } catch (e) {
-    console.error("GET /api/balance:", e);
+    console.error("GET /api/propfirm-accounts:", e);
     return NextResponse.json({ success: false, error: "DB error", data: [] }, { status: 500 });
   }
 }
@@ -22,16 +22,16 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
-    if (!body.date || !["deposit", "withdrawal"].includes(body.type) || !body.amount || body.amount <= 0) {
-      return NextResponse.json({ success: false, error: "Invalid transaction" }, { status: 400 });
+    if (!body.propFirm || !["investment", "payout"].includes(body.type) || !body.amount || body.amount <= 0 || !body.date) {
+      return NextResponse.json({ success: false, error: "Invalid entry" }, { status: 400 });
     }
-    const txn = await TransactionModel.create({
-      date: body.date, type: body.type, amount: Math.abs(body.amount), note: body.note || "",
-      propFirm: body.propFirm || "",
+    const txn = await AccountTxnModel.create({
+      propFirm: body.propFirm, type: body.type, amount: Math.abs(body.amount),
+      date: body.date, note: body.note || "",
     });
     return NextResponse.json({ success: true, data: txn }, { status: 201 });
   } catch (e) {
-    console.error("POST /api/balance:", e);
+    console.error("POST /api/propfirm-accounts:", e);
     return NextResponse.json({ success: false, error: "DB error" }, { status: 500 });
   }
 }

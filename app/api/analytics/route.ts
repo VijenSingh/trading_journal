@@ -1,12 +1,20 @@
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
-    const trades = await TradeModel.find({}).sort({ date: 1 }).lean();
+    const { searchParams } = new URL(req.url);
+    const propFirm = searchParams.get("propFirm");
+    const query: Record<string, unknown> = {};
+    if (propFirm) query.propFirm = propFirm;
+
+    const trades = await TradeModel.find(query)
+      .select("-screenshot -reasoning -lesson -rulesFollowed")
+      .sort({ date: 1 })
+      .lean();
     return NextResponse.json({ success: true, data: trades });
   } catch (e) {
     console.error("GET /api/analytics:", e);
