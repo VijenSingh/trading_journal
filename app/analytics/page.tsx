@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, cn } from "@/lib/utils";
+import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
@@ -96,18 +96,44 @@ export default function AnalyticsPage() {
         <EmptyState icon="📊" title="Koi trade nahi abhi" sub="Trades log karo to analytics yahan dikhega" />
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
+            <StatCard label="Win Rate" value={`${a.winRate}%`} color={a.winRate >= 50 ? "green" : "red"} sub={`${trades.length} trades`} />
             <StatCard label="Profit Factor" value={a.profitFactor === 999 ? "∞" : fmt(a.profitFactor)} color={a.profitFactor >= 1.5 ? "green" : "red"} sub="Gross Win / Gross Loss" />
             <StatCard label="Avg Win" value={formatPnl(a.avgWin)} color="green" sub={`Max: ${formatPnl(a.maxWin)}`} />
             <StatCard label="Avg Loss" value={formatPnl(-a.avgLoss)} color="red" sub={`Max: ${formatPnl(-a.maxLoss)}`} />
             <StatCard label="Avg R:R" value={fmt(a.avgRR)} color={a.avgRR >= 2 ? "green" : "amber"} sub="Risk:Reward" />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4 mb-6">
             <StatCard label="Win Streak" value={a.longestWinStreak} color="green" sub="Longest wins" />
             <StatCard label="Loss Streak" value={a.longestLossStreak} color="red" sub="Longest losses" />
             <StatCard label="Best Pair" value={String(a.bestPair).split(" ")[0]} color="green" />
             <StatCard label="Worst Pair" value={String(a.worstPair).split(" ")[0]} color="red" />
+            <StatCard label="Expectancy" value={formatPnl(a.expectancy)} color={a.expectancy >= 0 ? "green" : "red"} sub="Avg P&L / trade" />
+            <StatCard label="Max Drawdown" value={"-" + formatCurrency(a.maxDrawdown)} color="red" sub="Peak-to-trough dip" />
           </div>
+
+          {(a.bestTrade || a.worstTrade) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {a.bestTrade && (
+                <Card className="p-4 flex items-center justify-between bg-green/5 border-green/15">
+                  <div>
+                    <div className="text-xs text-ink-400 mb-1">🏆 Best Trade</div>
+                    <div className="text-sm text-ink-200 font-medium">{a.bestTrade.pair} · {a.bestTrade.date}</div>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-green">{formatPnl(a.bestTrade.pnl)}</div>
+                </Card>
+              )}
+              {a.worstTrade && (
+                <Card className="p-4 flex items-center justify-between bg-red/5 border-red/15">
+                  <div>
+                    <div className="text-xs text-ink-400 mb-1">💀 Worst Trade</div>
+                    <div className="text-sm text-ink-200 font-medium">{a.worstTrade.pair} · {a.worstTrade.date}</div>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-red">{formatPnl(a.worstTrade.pnl)}</div>
+                </Card>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card className="md:col-span-2 p-5">

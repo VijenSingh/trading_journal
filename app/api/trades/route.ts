@@ -11,12 +11,17 @@ export async function GET(req: NextRequest) {
     const pair = searchParams.get("pair");
     const result = searchParams.get("result");
     const propFirm = searchParams.get("propFirm");
+    const search = searchParams.get("search");
     const query: Record<string, unknown> = {};
     if (month && /^\d{4}-\d{2}$/.test(month)) query.date = { $gte: `${month}-01`, $lte: `${month}-31` };
     if (pair) query.pair = pair;
     if (result === "profit") query.pnl = { $gt: 0 };
     if (result === "loss") query.pnl = { $lt: 0 };
     if (propFirm) query.propFirm = propFirm;
+    if (search && search.trim()) {
+      const re = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      query.$or = [{ pair: re }, { strategy: re }, { session: re }, { reasoning: re }, { lesson: re }, { rulesFollowed: re }, { tags: re }];
+    }
 
     const limitParam = parseInt(searchParams.get("limit") || "", 10);
     const skipParam = parseInt(searchParams.get("skip") || "0", 10);

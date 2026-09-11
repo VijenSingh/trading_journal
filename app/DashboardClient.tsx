@@ -2,7 +2,7 @@
 import { MISTAKES } from "@/lib/types";
 import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
-import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey } from "@/lib/utils";
+import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey, cn } from "@/lib/utils";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -10,9 +10,10 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { MINDSET_STORAGE_KEY, affirmations as mindsetAffirmations } from "@/lib/mindset";
+import { isNotifySupported, isNotifyOptedIn, isNotifyGranted, enableNotifications, disableNotifications, notifyOnce } from "@/lib/notify";
 
 function computeStreak(history: { date: string; avoided: number[] }[]): number {
   const map = new Map(history.map(h => [h.date, h.avoided.length]));
@@ -61,6 +62,22 @@ export default function DashboardClient() {
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [weeklyLossLimit, setWeeklyLossLimit] = useState(0);
+  const [notifyOn, setNotifyOn] = useState(false);
+
+  useEffect(() => {
+    setNotifyOn(isNotifyOptedIn() && isNotifyGranted());
+  }, []);
+
+  const toggleNotify = async () => {
+    if (notifyOn) {
+      disableNotifications();
+      setNotifyOn(false);
+      return;
+    }
+    const granted = await enableNotifications();
+    setNotifyOn(granted);
+    if (!granted) alert("Notifications allow nahi hui — browser settings mein permission check karo.");
+  };
 
   const loadAvoided = useCallback(() => {
     fetch(`/api/mistakes?date=${getToday()}`, { cache: "no-store" })
@@ -146,6 +163,24 @@ export default function DashboardClient() {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
+  // Push a real browser notification for the same risk conditions already shown as banners below —
+  // useful when the tab is open but not focused. Each fires at most once per day (see notifyOnce).
+  useEffect(() => {
+    if (!notifyOn || loading) return;
+    const firm = activeFirm ? ` (${activeFirm})` : "";
+    if (limitBreached) {
+      notifyOnce("weekly-loss-breach", "🚨 Weekly loss limit cross ho gayi", `Loss -₹${weekLoss.toLocaleString("en-IN")} / ₹${weeklyLossLimit.toLocaleString("en-IN")} limit${firm}. Trading rok do.`);
+    } else if (limitWarning) {
+      notifyOnce("weekly-loss-warning", "⚠️ Weekly loss limit ke paas", `Loss -₹${weekLoss.toLocaleString("en-IN")} / ₹${weeklyLossLimit.toLocaleString("en-IN")} limit${firm}. Savdhaan raho.`);
+    }
+    if (todayTradeCount > 2) {
+      notifyOnce("overtrade", "⚠️ Overtrading alert", `Aaj ${todayTradeCount} trades ho chuke hain${firm}. Zaroori na ho to ruk jao.`);
+    }
+    if (!mindsetReadToday) {
+      notifyOnce("mindset", "🧠 Mindset reminder", "Aaj affirmations nahi padhi — trading se pehle 2 min nikaalo.");
+    }
+  }, [notifyOn, loading, limitBreached, limitWarning, weekLoss, weeklyLossLimit, activeFirm, todayTradeCount, mindsetReadToday]);
+
   // Top pairs by P&L
   const topPairs = useMemo(() => {
     const pairPnl: Record<string, number> = {};
@@ -161,6 +196,15 @@ export default function DashboardClient() {
   return (
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Dashboard" subtitle={today}>
+        {isNotifySupported() && (
+          <button onClick={toggleNotify} title={notifyOn ? "Reminders band karo" : "Reminders on karo (overtrade, loss limit, mindset)"}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all",
+              notifyOn ? "bg-green/10 text-green border-green/20 hover:bg-green/20" : "bg-bg-700 text-ink-300 border-black/[0.06] hover:bg-bg-600"
+            )}>
+            {notifyOn ? <Bell size={13} /> : <BellOff size={13} />} {notifyOn ? "Reminders On" : "Reminders Off"}
+          </button>
+        )}
         {trades.length > 0 && (
           <button onClick={() => setShowClearModal(true)}
             className="flex items-center gap-2 px-3 py-2 bg-red/10 text-red border border-red/20 rounded-xl text-xs font-semibold hover:bg-red/20 transition-all">

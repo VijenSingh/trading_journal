@@ -74,6 +74,9 @@ export function getAnalytics(trades: Trade[]) {
     maxWin: 0, maxLoss: 0, avgRR: 0,
     longestWinStreak: 0, longestLossStreak: 0,
     bestPair: "—", worstPair: "—",
+    maxDrawdown: 0, expectancy: 0,
+    bestTrade: null as { pnl: number; pair: string; date: string } | null,
+    worstTrade: null as { pnl: number; pair: string; date: string } | null,
   };
   if (!trades.length) return empty;
 
@@ -99,6 +102,18 @@ export function getAnalytics(trades: Trade[]) {
   const pe = Object.entries(pairPnl);
   const rrTrades = trades.filter(t => n(t.rr) > 0);
 
+  // Max drawdown — largest peak-to-trough dip on the equity curve (chronological order).
+  const chrono = [...trades].sort((a, b) => s(a.date).localeCompare(s(b.date)) || s(a.time).localeCompare(s(b.time)));
+  let cum = 0, peak = 0, maxDD = 0;
+  chrono.forEach(t => {
+    cum += n(t.pnl);
+    peak = Math.max(peak, cum);
+    maxDD = Math.max(maxDD, peak - cum);
+  });
+
+  const bestT = [...trades].sort((a, b) => n(b.pnl) - n(a.pnl))[0];
+  const worstT = [...trades].sort((a, b) => n(a.pnl) - n(b.pnl))[0];
+
   return {
     totalPnl, totalTrades: trades.length,
     totalWins: wins.length, totalLosses: losses.length,
@@ -112,6 +127,10 @@ export function getAnalytics(trades: Trade[]) {
     longestWinStreak: mW, longestLossStreak: mL,
     bestPair: pe.length ? [...pe].sort((a, b) => b[1] - a[1])[0][0] : "—",
     worstPair: pe.length ? [...pe].sort((a, b) => a[1] - b[1])[0][0] : "—",
+    maxDrawdown: maxDD,
+    expectancy: totalPnl / trades.length,
+    bestTrade: bestT ? { pnl: n(bestT.pnl), pair: s(bestT.pair) || "Unknown", date: s(bestT.date) } : null,
+    worstTrade: worstT ? { pnl: n(worstT.pnl), pair: s(worstT.pair) || "Unknown", date: s(worstT.date) } : null,
   };
 }
 // ─── Day-level aggregation (P&L per calendar day) ───────────────────────────
@@ -196,19 +215,96 @@ function csvCell(v: unknown): string {
   const str = s(v);
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
+const CSV_HEADERS = [
+  "Date", "Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
+  "P&L", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
+  "Reasoning", "Lesson", "Rules Followed",
+];
 export function tradesToCsv(trades: Trade[]): string {
-  const headers = [
-    "Date", "Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
-    "P&L", "Pips", "RR", "Strategy", "Session", "Emotion", "Mistakes", "Tags",
-    "Reasoning", "Lesson", "Rules Followed",
-  ];
   const rows = trades.map(t => [
     t.date, t.time, t.pair, t.type, t.lot, t.entry, t.sl, t.target, t.exit,
-    t.pnl, t.pips, t.rr, t.strategy, t.session, t.emotion,
+    t.pnl, t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
     (t.mistakes || []).join("; "), (t.tags || []).join("; "),
     t.reasoning, t.lesson, t.rulesFollowed,
   ].map(csvCell).join(","));
-  return [headers.join(","), ...rows].join("\n");
+  return [CSV_HEADERS.join(","), ...rows].join("\n");
+}
+
+// ─── CSV Import ──────────────────────────────────────────────────────────────
+function parseCsvRows(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c === "\r") { /* skip */ }
+    else field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => !(r.length === 1 && r[0].trim() === ""));
+}
+
+export interface CsvImportResult { trades: Partial<Trade>[]; errors: string[] }
+
+export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImportResult {
+  const rows = parseCsvRows(csvText.replace(/^﻿/, ""));
+  if (rows.length < 2) return { trades: [], errors: ["CSV khali hai ya sirf header hai"] };
+
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  const idx = (name: string) => header.indexOf(name);
+  const col = {
+    date: idx("date"), time: idx("time"), pair: idx("pair"), type: idx("type"),
+    lot: idx("lot"), entry: idx("entry"), sl: idx("sl"), target: idx("target"), exit: idx("exit"),
+    pnl: idx("p&l"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
+    emotion: idx("emotion"), propFirm: idx("prop firm"), mistakes: idx("mistakes"), tags: idx("tags"),
+    reasoning: idx("reasoning"), lesson: idx("lesson"), rulesFollowed: idx("rules followed"),
+  };
+  if (col.date < 0 || col.pair < 0 || col.pnl < 0) {
+    return { trades: [], errors: ['CSV mein "Date", "Pair" aur "P&L" columns hona zaroori hai'] };
+  }
+
+  const trades: Partial<Trade>[] = [];
+  const errors: string[] = [];
+  rows.slice(1).forEach((r, i) => {
+    if (r.every(c => !c.trim())) return;
+    const get = (ix: number) => (ix >= 0 ? (r[ix] || "").trim() : "");
+    const date = get(col.date), pair = get(col.pair), pnlRaw = get(col.pnl);
+    if (!date || !pair || pnlRaw === "") {
+      errors.push(`Row ${i + 2}: Date/Pair/P&L missing hai — skip kiya`);
+      return;
+    }
+    trades.push({
+      date, time: get(col.time), pair,
+      type: get(col.type).toUpperCase() === "SELL" ? "SELL" : "BUY",
+      lot: parseFloat(get(col.lot)) || 0,
+      entry: parseFloat(get(col.entry)) || 0,
+      sl: parseFloat(get(col.sl)) || 0,
+      target: parseFloat(get(col.target)) || 0,
+      exit: parseFloat(get(col.exit)) || 0,
+      pnl: parseFloat(pnlRaw) || 0,
+      pips: parseFloat(get(col.pips)) || 0,
+      rr: parseFloat(get(col.rr)) || 0,
+      strategy: get(col.strategy),
+      session: get(col.session),
+      emotion: get(col.emotion),
+      propFirm: get(col.propFirm) || defaultPropFirm,
+      mistakes: get(col.mistakes) ? get(col.mistakes).split(";").map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x)) : [],
+      tags: get(col.tags) ? get(col.tags).split(";").map(x => x.trim()).filter(Boolean) : [],
+      reasoning: get(col.reasoning),
+      lesson: get(col.lesson),
+      rulesFollowed: get(col.rulesFollowed),
+    });
+  });
+  return { trades, errors };
 }
 // ─── Screenshot compression (client-side, before storing as base64) ────────
 export function compressImage(file: File, maxWidth = 1000, quality = 0.7): Promise<string> {

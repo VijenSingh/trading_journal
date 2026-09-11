@@ -1,12 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday } from "@/lib/utils";
+import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday, csvToTrades } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, Badge, EmptyState, Loading, Button } from "@/components/ui";
-import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter, Download } from "lucide-react";
+import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter, Download, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -16,15 +16,24 @@ export default function JournalPage() {
   const activeFirm = useActiveFirm();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [filterPair, setFilterPair] = useState("");
   const [filterResult, setFilterResult] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   // Full unfiltered pair/month list — independent of pagination — so dropdown options stay complete.
   const [allOptions, setAllOptions] = useState<{ pairs: string[]; months: string[] }>({ pairs: [], months: [] });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce search input before it hits the server.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const buildParams = useCallback((skip: number) => {
     const params = new URLSearchParams();
@@ -32,15 +41,19 @@ export default function JournalPage() {
     if (filterPair) params.set("pair", filterPair);
     if (filterResult) params.set("result", filterResult);
     if (filterMonth) params.set("month", filterMonth);
+    if (search) params.set("search", search);
     params.set("limit", String(PAGE_SIZE));
     params.set("skip", String(skip));
     return params;
-  }, [activeFirm, filterPair, filterResult, filterMonth]);
+  }, [activeFirm, filterPair, filterResult, filterMonth, search]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (targetPage: number) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/trades?" + buildParams(0).toString());
+      const res = await fetch("/api/trades?" + buildParams((targetPage - 1) * PAGE_SIZE).toString(), {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       const json = await res.json();
       setTrades(json.data || []);
       setTotal(json.total ?? (json.data || []).length);
@@ -52,7 +65,10 @@ export default function JournalPage() {
     try {
       const params = new URLSearchParams();
       if (activeFirm) params.set("propFirm", activeFirm);
-      const res = await fetch("/api/analytics?" + params.toString());
+      const res = await fetch("/api/analytics?" + params.toString(), {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       const json = await res.json();
       const all: Trade[] = json.data || [];
       setAllOptions({
@@ -62,26 +78,28 @@ export default function JournalPage() {
     } catch {}
   }, [activeFirm]);
 
-  const loadMore = async () => {
-    setLoadingMore(true);
-    try {
-      const res = await fetch("/api/trades?" + buildParams(trades.length).toString());
-      const json = await res.json();
-      setTrades(prev => [...prev, ...(json.data || [])]);
-    } catch { toast.error("Load more failed"); }
-    finally { setLoadingMore(false); }
-  };
+  // Filters/search/firm changed — jump back to page 1.
+  useEffect(() => { setPage(1); }, [activeFirm, filterPair, filterResult, filterMonth, search]);
 
   useEffect(() => {
-    load();
+    load(page);
+  }, [load, page]);
+
+  useEffect(() => {
     loadOptions();
-    window.addEventListener("trade-data-changed", load);
+  }, [loadOptions]);
+
+  useEffect(() => {
+    const onChange = () => load(page);
+    window.addEventListener("trade-data-changed", onChange);
     window.addEventListener("trade-data-changed", loadOptions);
     return () => {
-      window.removeEventListener("trade-data-changed", load);
+      window.removeEventListener("trade-data-changed", onChange);
       window.removeEventListener("trade-data-changed", loadOptions);
     };
-  }, [load, loadOptions]);
+  }, [load, loadOptions, page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const del = async (id: string) => {
     if (!confirm("Ye trade delete karein?")) return;
@@ -91,18 +109,14 @@ export default function JournalPage() {
       if (!res.ok || !j.success) throw new Error(j.error || "Delete failed");
       toast.success("Trade deleted");
       invalidateTradeData();
-      setTrades(prev => prev.filter(t => t._id !== id));
-      setTotal(prev => Math.max(0, prev - 1));
+      load(page);
     } catch { toast.error("Delete failed — try again"); }
   };
 
   const { pairs, months } = allOptions;
 
-  const filtered = trades.filter(t =>
-    !search || t.pair.toLowerCase().includes(search.toLowerCase()) ||
-    t.strategy?.toLowerCase().includes(search.toLowerCase()) ||
-    t.reasoning?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Server already applied pair/result/month/search filters + pagination.
+  const filtered = trades;
 
   const exportCsv = () => {
     if (filtered.length === 0) { toast.error("Export karne ke liye koi trade nahi"); return; }
@@ -110,9 +124,45 @@ export default function JournalPage() {
     toast.success(`${filtered.length} trades exported ✅`);
   };
 
+  const handleImportClick = () => fileInputRef.current?.click();
+
+  const handleImportFile = async (file: File | null) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const { trades: parsed, errors } = csvToTrades(text, activeFirm || "");
+      if (parsed.length === 0) {
+        toast.error(errors[0] || "CSV se koi valid trade nahi mila");
+        return;
+      }
+      const res = await fetch("/api/trades/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trades: parsed }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Import failed");
+      toast.success(`${json.count} trades import ho gaye ✅${errors.length ? ` (${errors.length} rows skip hui)` : ""}`);
+      invalidateTradeData();
+      setPage(1);
+      load(1);
+    } catch {
+      toast.error("CSV import nahi ho paya — format check karo");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Trade Journal" subtitle={`${total} trades logged`}>
+        <input ref={fileInputRef} type="file" accept=".csv" className="hidden"
+          onChange={e => handleImportFile(e.target.files?.[0] || null)} />
+        <Button variant="ghost" size="sm" onClick={handleImportClick} loading={importing}>
+          <Upload size={13} /> Import CSV
+        </Button>
         <Button variant="ghost" size="sm" onClick={exportCsv}>
           <Download size={13} /> Export CSV
         </Button>
@@ -125,8 +175,8 @@ export default function JournalPage() {
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6 flex-wrap">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
-          <input className="inp pl-9" style={{width:"100%", maxWidth:"220px"}} placeholder="Search trades..."
-            value={search} onChange={e=>setSearch(e.target.value)} />
+          <input className="inp pl-9" style={{width:"100%", maxWidth:"220px"}} placeholder="Search trades (sab trades mein)..."
+            value={searchInput} onChange={e=>setSearchInput(e.target.value)} />
         </div>
         <select className="inp" style={{minWidth:"120px"}} value={filterPair} onChange={e=>setFilterPair(e.target.value)}>
           <option value="">All Pairs</option>
@@ -141,8 +191,8 @@ export default function JournalPage() {
           <option value="">All Months</option>
           {months.map(m=><option key={m} value={m}>{getMonthLabel(m)}</option>)}
         </select>
-        {(filterPair||filterResult||filterMonth||search) && (
-          <Button variant="ghost" size="sm" onClick={()=>{setFilterPair("");setFilterResult("");setFilterMonth("");setSearch("");}}>
+        {(filterPair||filterResult||filterMonth||searchInput) && (
+          <Button variant="ghost" size="sm" onClick={()=>{setFilterPair("");setFilterResult("");setFilterMonth("");setSearchInput("");setSearch("");}}>
             Clear filters
           </Button>
         )}
@@ -258,10 +308,14 @@ export default function JournalPage() {
         </div>
       )}
 
-      {!loading && !search && trades.length < total && (
-        <div className="flex justify-center mt-6">
-          <Button variant="ghost" size="md" onClick={loadMore} loading={loadingMore}>
-            Load More ({total - trades.length} baaki)
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 mt-6">
+          <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+            <ChevronLeft size={14} /> Pichla
+          </Button>
+          <span className="text-xs text-ink-400 font-mono">Page {page} / {totalPages} &middot; {total} trades</span>
+          <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+            Agla <ChevronRight size={14} />
           </Button>
         </div>
       )}
