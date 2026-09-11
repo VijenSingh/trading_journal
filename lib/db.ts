@@ -114,6 +114,17 @@ const AccountTxnSchema = new mongoose.Schema(
 );
 AccountTxnSchema.index({ propFirm: 1 });
 
+// ─── Trading Rule Schema (user-editable) ────────────────────────────────────
+const RuleSchema = new mongoose.Schema(
+  {
+    category: { type: String, enum: ["pre", "during", "post", "emergency"], required: true },
+    text: { type: String, required: true },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+RuleSchema.index({ category: 1, order: 1 });
+
 export const TradeModel =
   mongoose.models.Trade || mongoose.model("Trade", TradeSchema);
 
@@ -132,3 +143,6 @@ export const TransactionModel =
 
 export const AccountTxnModel =
   mongoose.models.AccountTxn || mongoose.model("AccountTxn", AccountTxnSchema);
+
+export const RuleModel =
+  mongoose.models.Rule || mongoose.model("Rule", RuleSchema);

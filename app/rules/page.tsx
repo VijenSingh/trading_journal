@@ -1,31 +1,165 @@
+"use client";
+import { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/layout/PageHeader";
-import { Card } from "@/components/ui";
+import { Card, Loading } from "@/components/ui";
+import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import toast from "react-hot-toast";
 
-const RuleCard = ({ num, text, color = "green" }: { num: string; text: string; color?: "green"|"amber"|"blue" }) => {
-  const colors = { green:"border-green/40 bg-green/5", amber:"border-amber/40 bg-amber/5", blue:"border-blue/40 bg-blue/5" };
-  const textColors = { green:"text-green", amber:"text-amber", blue:"text-blue" };
-  return (
-    <div className={`p-4 rounded-xl border-l-4 ${colors[color]} rounded-l-none`}>
-      <div className={`text-[10px] font-mono font-bold mb-1.5 ${textColors[color]}`}>{num}</div>
-      <div className="text-sm text-ink-100 leading-relaxed font-medium">{text}</div>
-    </div>
-  );
+interface Rule { _id: string; category: "pre" | "during" | "post" | "emergency"; text: string; order: number }
+
+const CATEGORIES: { key: Rule["category"]; title: string; emoji: string; color: "green" | "amber" | "blue" | "red"; prefix: string }[] = [
+  { key: "pre", title: "Pre-Trade Rules — Trade Lene Se Pehle", emoji: "🔴", color: "green", prefix: "RULE" },
+  { key: "during", title: "During Trade — Trade Ke Waqt", emoji: "🟡", color: "amber", prefix: "RULE" },
+  { key: "post", title: "Post-Trade Rules — Trade Ke Baad", emoji: "🔵", color: "blue", prefix: "RULE" },
+  { key: "emergency", title: "Emergency Rules — Jab Sab Galat Ho Raha Ho", emoji: "🚨", color: "red", prefix: "E" },
+];
+
+const colorClasses = {
+  green: { border: "border-green/40 bg-green/5", text: "text-green" },
+  amber: { border: "border-amber/40 bg-amber/5", text: "text-amber" },
+  blue: { border: "border-blue/40 bg-blue/5", text: "text-blue" },
+  red: { border: "border-red/40 bg-red/5", text: "text-red" },
 };
 
-const Section = ({ title, emoji, children }: { title: string; emoji: string; children: React.ReactNode }) => (
-  <div className="mb-8">
-    <div className="flex items-center gap-2 mb-4">
-      <span className="text-lg">{emoji}</span>
-      <h2 className="text-sm font-semibold text-ink-200 uppercase tracking-widest">{title}</h2>
+function RuleRow({ rule, num, color, onSave, onDelete }: {
+  rule: Rule; num: string; color: "green" | "amber" | "blue" | "red";
+  onSave: (id: string, text: string) => Promise<void>; onDelete: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(rule.text);
+  const [saving, setSaving] = useState(false);
+  const c = colorClasses[color];
+
+  const save = async () => {
+    if (!text.trim()) return;
+    setSaving(true);
+    try { await onSave(rule._id, text.trim()); setEditing(false); }
+    finally { setSaving(false); }
+  };
+
+  if (editing) {
+    return (
+      <div className={`p-4 rounded-xl border-l-4 ${c.border} rounded-l-none`}>
+        <div className={`text-[10px] font-mono font-bold mb-1.5 ${c.text}`}>{num}</div>
+        <textarea className="inp text-sm w-full" rows={2} value={text} onChange={e => setText(e.target.value)} autoFocus />
+        <div className="flex gap-2 mt-2">
+          <button onClick={save} disabled={saving} className="flex items-center gap-1 text-[11px] text-green hover:text-green/80 font-semibold disabled:opacity-50">
+            <Check size={12} /> Save
+          </button>
+          <button onClick={() => { setText(rule.text); setEditing(false); }} className="flex items-center gap-1 text-[11px] text-ink-400 hover:text-ink-200">
+            <X size={12} /> Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`group p-4 rounded-xl border-l-4 ${c.border} rounded-l-none relative`}>
+      <div className={`text-[10px] font-mono font-bold mb-1.5 ${c.text}`}>{num}</div>
+      <div className="text-sm text-ink-100 leading-relaxed font-medium pr-14">{rule.text}</div>
+      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => setEditing(true)} className="w-6 h-6 flex items-center justify-center rounded-lg bg-bg-800/80 text-ink-400 hover:text-ink-100">
+          <Pencil size={11} />
+        </button>
+        <button onClick={() => onDelete(rule._id)} className="w-6 h-6 flex items-center justify-center rounded-lg bg-bg-800/80 text-ink-400 hover:text-red">
+          <Trash2 size={11} />
+        </button>
+      </div>
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
-  </div>
-);
+  );
+}
+
+function AddRuleRow({ category, onAdd }: { category: Rule["category"]; onAdd: (category: Rule["category"], text: string) => Promise<void> }) {
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setSaving(true);
+    try { await onAdd(category, text.trim()); setText(""); setAdding(false); }
+    finally { setSaving(false); }
+  };
+
+  if (!adding) {
+    return (
+      <button onClick={() => setAdding(true)}
+        className="flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-black/[0.1] text-ink-400 text-sm hover:border-black/20 hover:text-ink-200 transition-all">
+        <Plus size={14} /> Naya Rule Add Karo
+      </button>
+    );
+  }
+
+  return (
+    <div className="p-4 rounded-xl border-2 border-dashed border-black/[0.1]">
+      <textarea className="inp text-sm w-full" rows={2} placeholder="Apna rule likho..." value={text} onChange={e => setText(e.target.value)} autoFocus />
+      <div className="flex gap-2 mt-2">
+        <button onClick={submit} disabled={saving} className="flex items-center gap-1 text-[11px] text-green hover:text-green/80 font-semibold disabled:opacity-50">
+          <Check size={12} /> Add
+        </button>
+        <button onClick={() => { setText(""); setAdding(false); }} className="flex items-center gap-1 text-[11px] text-ink-400 hover:text-ink-200">
+          <X size={12} /> Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function RulesPage() {
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    fetch("/api/rules", { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => { if (j.success) setRules(j.data); })
+      .catch(() => toast.error("Rules load nahi hui"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const saveRule = async (id: string, text: string) => {
+    try {
+      const res = await fetch(`/api/rules/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error();
+      setRules(prev => prev.map(r => (r._id === id ? { ...r, text } : r)));
+      toast.success("Rule update ho gaya");
+    } catch { toast.error("Update failed"); }
+  };
+
+  const deleteRule = async (id: string) => {
+    if (!confirm("Ye rule delete karein?")) return;
+    try {
+      const res = await fetch(`/api/rules/${id}`, { method: "DELETE" });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error();
+      setRules(prev => prev.filter(r => r._id !== id));
+      toast.success("Rule deleted");
+    } catch { toast.error("Delete failed"); }
+  };
+
+  const addRule = async (category: Rule["category"], text: string) => {
+    try {
+      const res = await fetch("/api/rules", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category, text }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error();
+      setRules(prev => [...prev, j.data]);
+      toast.success("Rule add ho gaya");
+    } catch { toast.error("Add failed"); }
+  };
+
+  if (loading) return <div className="p-4 md:p-8"><Loading /></div>;
+
   return (
     <div className="p-4 md:p-8 page-transition max-w-4xl">
-      <PageHeader title="Trading Rules" subtitle="Trading se pehle padho. Ye rules tode = account blow." />
+      <PageHeader title="Trading Rules" subtitle="Apne rules likho, edit karo — jo tum follow karoge wahi kaam aayega" />
 
       <Card className="p-6 mb-6 border-green/20 bg-green/5">
         <div className="text-sm text-green font-semibold mb-2">⚡ Ek Baat Yaad Rakho</div>
@@ -35,47 +169,24 @@ export default function RulesPage() {
         </p>
       </Card>
 
-      <Section title="Pre-Trade Rules — Trade Lene Se Pehle" emoji="🔴">
-        <RuleCard num="RULE 01" text="Sirf 2 trades maximum per day. Koi exception nahi — chahe profit ho ya loss. Count karo." />
-        <RuleCard num="RULE 02" text="Lot size pehle se fix karo. Loss ho ya profit — lot size KABHI increase nahi karoge loss cover ke liye." />
-        <RuleCard num="RULE 03" text="SL aur Target DONO set karo trade lene SE PEHLE. Entry ke baad change nahi hoga kuch." />
-        <RuleCard num="RULE 04" text="Sirf clear market structure mein trade karo. Sideways market = NO TRADE. Wait karo, force nahi." />
-        <RuleCard num="RULE 05" text="Ek fixed strategy use karo. Setup nahi mila? No trade lena. FOMO pe trade nahi lena kabhi." />
-        <RuleCard num="RULE 06" text="Daily max loss limit set karo. Woh limit hit? Din khatam. Screen band karo. Kal fresh start." />
-      </Section>
-
-      <Section title="During Trade — Trade Ke Waqt" emoji="🟡">
-        <RuleCard num="RULE 07" text="SL hit hone do — kabhi manually band mat karo SL se pehle. SL hit hona = plan sahi tha." color="amber" />
-        <RuleCard num="RULE 08" text="Target tak wait karo. Beech mein early exit = pattern todna = consistency khatam." color="amber" />
-        <RuleCard num="RULE 09" text="Trade mein ho to doosra chart mat dekho. Ek trade, ek focus. Distraction = bad decision." color="amber" />
-        <RuleCard num="RULE 10" text="Emotion feel ho — panic, greed, revenge? Kuch mat karo. Keyboard se haath hata. 10 deep breaths." color="amber" />
-      </Section>
-
-      <Section title="Post-Trade Rules — Trade Ke Baad" emoji="🔵">
-        <RuleCard num="RULE 11" text="Loss ke baad 30 minute MANDATORY break. Chart band karo, paani piyo, bahar jao. No exceptions." color="blue" />
-        <RuleCard num="RULE 12" text="Har trade ka journal likho — iss app mein. Entry reason, exit, emotion, lesson — sab." color="blue" />
-        <RuleCard num="RULE 13" text="Profit ke baad bhi STOP. 2 trade complete? Din khatam. Profit protect karna bhi discipline hai." color="blue" />
-        <RuleCard num="RULE 14" text="Weekend mein apna journal review karo. Patterns dhundho, mistakes count karo, next week plan banao." color="blue" />
-      </Section>
-
-      {/* Emergency rules */}
-      <Card className="p-6">
-        <div className="text-xs font-semibold text-red uppercase tracking-widest mb-4">🚨 Emergency Rules — Jab Sab Galat Ho Raha Ho</div>
-        <div className="space-y-3">
-          {[
-            "Agar 3 consecutive losses ho gayein — screen band karo. Koi bhi trade mat lo aaj.",
-            "Agar anger, frustration ya desperation feel ho — trading ke liye unfit ho. Kal aao.",
-            "Agar propfirm daily drawdown limit 50% hit kar li — band karo, risk nahi le sakte.",
-            "Agar koi cheez 'definitely work karega' lag raha ho — ye overconfidence hai. Ruko.",
-            "Agar tum soch rahe ho 'ek aur trade se sab recover ho jayega' — bilkul mat lena. YE SABSE DANGEROUS THOUGHT HAI.",
-          ].map((r, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 bg-red/5 border border-red/15 rounded-xl">
-              <span className="text-red font-mono text-xs font-bold mt-0.5">E{i+1}</span>
-              <span className="text-sm text-ink-200 leading-relaxed">{r}</span>
+      {CATEGORIES.map(cat => {
+        const catRules = rules.filter(r => r.category === cat.key).sort((a, b) => a.order - b.order);
+        return (
+          <div key={cat.key} className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">{cat.emoji}</span>
+              <h2 className="text-sm font-semibold text-ink-200 uppercase tracking-widest">{cat.title}</h2>
             </div>
-          ))}
-        </div>
-      </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {catRules.map((r, i) => (
+                <RuleRow key={r._id} rule={r} num={`${cat.prefix} ${cat.key === "emergency" ? i + 1 : String(i + 1).padStart(2, "0")}`}
+                  color={cat.color} onSave={saveRule} onDelete={deleteRule} />
+              ))}
+              <AddRuleRow category={cat.key} onAdd={addRule} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

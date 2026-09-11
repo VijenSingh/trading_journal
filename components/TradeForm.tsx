@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Card, Button, Label } from "@/components/ui";
 import { PAIRS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, PIP_VALUES, Trade } from "@/lib/types";
@@ -46,10 +46,23 @@ function tradeToForm(t: Trade) {
 
 export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string; initialTrade?: Trade }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEdit = !!tradeId;
-  const [form, setForm] = useState(
-    initialTrade ? tradeToForm(initialTrade) : { ...defaultForm, date: getToday(), time: getNow(), propFirm: getActiveFirm() }
-  );
+  const [form, setForm] = useState(() => {
+    if (initialTrade) return tradeToForm(initialTrade);
+    const base = { ...defaultForm, date: getToday(), time: getNow(), propFirm: getActiveFirm() };
+    // Prefilled from the Position Size Calculator's "Use This Setup" link.
+    const qPair = searchParams.get("pair");
+    if (qPair) {
+      const known = PAIRS.includes(qPair);
+      base.pair = known ? qPair : "Other";
+      base.customPair = known ? "" : qPair;
+    }
+    if (searchParams.get("entry")) base.entry = searchParams.get("entry") || "";
+    if (searchParams.get("sl")) base.sl = searchParams.get("sl") || "";
+    if (searchParams.get("lot")) base.lot = searchParams.get("lot") || "";
+    return base;
+  });
   const [firms, setFirms] = useState<string[]>([]);
   const [selectedMistakes, setSelectedMistakes] = useState<number[]>(initialTrade?.mistakes || []);
   const [noMistakes, setNoMistakes] = useState(!!initialTrade?.noMistakesFlag);
@@ -61,6 +74,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const [screenshot, setScreenshot] = useState(initialTrade?.screenshot || "");
   const [compressing, setCompressing] = useState(false);
   const [todayCount, setTodayCount] = useState(0);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -69,11 +83,21 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     fetch(`/api/analytics${params}`).then(r => r.json())
       .then(j => {
         if (!j.success) return;
-        const count = (j.data || []).filter((t: Trade) => t.date === getToday()).length;
+        const all: Trade[] = j.data || [];
+        const count = all.filter((t: Trade) => t.date === getToday()).length;
         setTodayCount(count);
+        const freq: Record<string, number> = {};
+        all.forEach(t => (t.tags || []).forEach(tag => { freq[tag] = (freq[tag] || 0) + 1; }));
+        setSuggestedTags(Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([tag]) => tag));
       }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, form.propFirm]);
+
+  const addTag = (tag: string) => {
+    const current = form.tags.split(",").map(t => t.trim()).filter(Boolean);
+    if (current.includes(tag)) return;
+    set("tags", [...current, tag].join(", "));
+  };
 
   const handleScreenshot = async (file: File | null) => {
     if (!file) return;
@@ -190,6 +214,24 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     return Object.keys(e).length === 0;
   };
 
+  // Same pair + date + entry + exit already logged? Likely an accidental double-add.
+  const checkDuplicate = async (): Promise<boolean> => {
+    try {
+      const pair = getPair();
+      const date = form.date || getToday();
+      const entry = parseFloat(form.entry), exit = parseFloat(form.exit);
+      const params = new URLSearchParams({ pair, month: date.slice(0, 7), limit: "100" });
+      const res = await fetch(`/api/trades?${params.toString()}`, { cache: "no-store" });
+      const j = await res.json();
+      return (j.data || []).some((t: Trade) =>
+        t._id !== tradeId &&
+        t.date === date &&
+        Math.abs((Number(t.entry) || 0) - entry) < 0.0001 &&
+        Math.abs((Number(t.exit) || 0) - exit) < 0.0001
+      );
+    } catch { return false; }
+  };
+
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!validate()) {
@@ -198,6 +240,11 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       const firstErr = document.querySelector('.border-red\\/60');
       firstErr?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
+    }
+
+    if (await checkDuplicate()) {
+      const proceed = window.confirm("⚠️ Same Pair/Date/Entry/Exit wala trade already journal mein hai. Kya ye phir bhi add karna hai (duplicate ho sakta hai)?");
+      if (!proceed) return;
     }
 
     setLoading(true);
@@ -619,6 +666,18 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
           <FormGroup label="Tags (comma-separated)">
             <input className="inp" placeholder="e.g. trend, news, london-session"
               value={form.tags} onChange={e => set("tags", e.target.value)} />
+            {suggestedTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {suggestedTags
+                  .filter(tag => !form.tags.split(",").map(t => t.trim()).includes(tag))
+                  .map(tag => (
+                    <button key={tag} type="button" onClick={() => addTag(tag)}
+                      className="text-[10px] bg-bg-700 text-ink-300 px-2 py-1 rounded-lg border border-black/[0.06] hover:bg-bg-600 hover:text-ink-100 transition-colors">
+                      + {tag}
+                    </button>
+                  ))}
+              </div>
+            )}
           </FormGroup>
         </div>
       </Card>

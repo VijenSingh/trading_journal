@@ -2,7 +2,8 @@
 import { MISTAKES } from "@/lib/types";
 import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
-import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey, cn } from "@/lib/utils";
+import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey, cn, downloadJson } from "@/lib/utils";
+import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -10,10 +11,11 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff, Download, Upload } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { MINDSET_STORAGE_KEY, affirmations as mindsetAffirmations } from "@/lib/mindset";
 import { isNotifySupported, isNotifyOptedIn, isNotifyGranted, enableNotifications, disableNotifications, notifyOnce } from "@/lib/notify";
+import toast from "react-hot-toast";
 
 function computeStreak(history: { date: string; avoided: number[] }[]): number {
   const map = new Map(history.map(h => [h.date, h.avoided.length]));
@@ -63,8 +65,57 @@ export default function DashboardClient() {
   const [clearing, setClearing] = useState(false);
   const [weeklyLossLimit, setWeeklyLossLimit] = useState(0);
   const [notifyOn, setNotifyOn] = useState(false);
+  const [notifySupported, setNotifySupported] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<any>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBackup = async () => {
+    setBackingUp(true);
+    try {
+      const res = await fetch("/api/backup", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error();
+      downloadJson(`tradermind-backup-${getToday()}.json`, json);
+      toast.success("Backup download ho gaya ✅");
+    } catch { toast.error("Backup failed — try again"); }
+    finally { setBackingUp(false); }
+  };
+
+  const handleRestoreFile = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (parsed?.version !== 1 || !Array.isArray(parsed?.data?.trades)) {
+        toast.error("Invalid backup file");
+        return;
+      }
+      setPendingRestore(parsed);
+    } catch { toast.error("Backup file parse nahi ho payi"); }
+    finally { if (restoreInputRef.current) restoreInputRef.current.value = ""; }
+  };
+
+  const confirmRestore = async () => {
+    if (!pendingRestore) return;
+    setRestoring(true);
+    try {
+      const res = await fetch("/api/backup", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pendingRestore),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Restore failed");
+      toast.success("Data restore ho gaya ✅ — page reload ho raha hai");
+      invalidateTradeData();
+      invalidatePropFirmAccounts();
+      setPendingRestore(null);
+      setTimeout(() => window.location.reload(), 800);
+    } catch { toast.error("Restore failed — try again"); setRestoring(false); }
+  };
 
   useEffect(() => {
+    setNotifySupported(isNotifySupported());
     setNotifyOn(isNotifyOptedIn() && isNotifyGranted());
   }, []);
 
@@ -196,7 +247,17 @@ export default function DashboardClient() {
   return (
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Dashboard" subtitle={today}>
-        {isNotifySupported() && (
+        <input ref={restoreInputRef} type="file" accept=".json" className="hidden"
+          onChange={e => handleRestoreFile(e.target.files?.[0] || null)} />
+        <button onClick={handleBackup} disabled={backingUp} title="Sara data (trades, goals, mistakes, balance, prop firms) JSON backup"
+          className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all disabled:opacity-50">
+          <Download size={13} /> {backingUp ? "Backing up..." : "Backup"}
+        </button>
+        <button onClick={() => restoreInputRef.current?.click()} title="JSON backup file se data restore karo"
+          className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all">
+          <Upload size={13} /> Restore
+        </button>
+        {notifySupported && (
           <button onClick={toggleNotify} title={notifyOn ? "Reminders band karo" : "Reminders on karo (overtrade, loss limit, mindset)"}
             className={cn(
               "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all",
@@ -232,6 +293,26 @@ export default function DashboardClient() {
                 </button>
                 <button onClick={() => setShowClearModal(false)}
                   className="flex-1 py-2.5 bg-bg-700 text-ink-200 rounded-xl text-sm font-semibold hover:bg-bg-600 transition-all">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {pendingRestore && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => !restoring && setPendingRestore(null)}>
+            <div className="bg-bg-800 border border-red/30 rounded-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+              <div className="text-lg font-bold text-ink-100 mb-2">⚠️ Backup Se Restore Karein?</div>
+              <p className="text-sm text-ink-300 mb-5 leading-relaxed">
+                Ye action <strong className="text-red">undo nahi hoga</strong>. Current data (saare trades, goals, mistakes, balance, prop firms) permanently delete ho ke backup file ({pendingRestore.data?.trades?.length ?? 0} trades, {pendingRestore.exportedAt?.slice(0, 10) || "?"} ka) se replace ho jayega.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={confirmRestore} disabled={restoring}
+                  className="flex-1 py-2.5 bg-red text-white rounded-xl text-sm font-bold hover:bg-red/80 transition-all disabled:opacity-50">
+                  {restoring ? "Restoring..." : "Haan, Restore Karo"}
+                </button>
+                <button onClick={() => setPendingRestore(null)} disabled={restoring}
+                  className="flex-1 py-2.5 bg-bg-700 text-ink-200 rounded-xl text-sm font-semibold hover:bg-bg-600 transition-all disabled:opacity-50">
                   Cancel
                 </button>
               </div>

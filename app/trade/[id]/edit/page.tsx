@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
 import TradeForm from "@/components/TradeForm";
@@ -37,7 +37,9 @@ export default function EditTradePage() {
           </div>
         </>
       ) : (
-        <TradeForm tradeId={id} initialTrade={trade} />
+        <Suspense fallback={<Loading />}>
+          <TradeForm tradeId={id} initialTrade={trade} />
+        </Suspense>
       )}
     </div>
   );

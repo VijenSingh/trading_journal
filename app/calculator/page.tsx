@@ -1,10 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/layout/PageHeader";
-import { Card, CardTitle, Label } from "@/components/ui";
+import { Card, CardTitle, Label, Button } from "@/components/ui";
 import { PAIRS, PIP_VALUES } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Calculator as CalcIcon } from "lucide-react";
+import { useActiveFirm } from "@/lib/activeFirm";
+import { useTradeData } from "@/lib/useTradeData";
+import { Calculator as CalcIcon, Wallet, Send } from "lucide-react";
 
 export default function CalculatorPage() {
   const [balance, setBalance] = useState("");
@@ -12,6 +15,9 @@ export default function CalculatorPage() {
   const [pair, setPair] = useState("XAUUSD (Gold)");
   const [entry, setEntry] = useState("");
   const [sl, setSl] = useState("");
+  const [accountBalance, setAccountBalance] = useState<number | null>(null);
+  const activeFirm = useActiveFirm();
+  const { trades } = useTradeData();
 
   // Remember balance/risk between visits — pure convenience, not sensitive.
   useEffect(() => {
@@ -28,6 +34,23 @@ export default function CalculatorPage() {
       if (riskPct) localStorage.setItem("tm-calc-risk", riskPct);
     } catch {}
   }, [balance, riskPct]);
+
+  // Real tracked account balance (deposits - withdrawals + trade P&L) — lets the user
+  // one-click fill it instead of retyping it every time.
+  useEffect(() => {
+    const params = activeFirm ? `?propFirm=${encodeURIComponent(activeFirm)}` : "";
+    fetch(`/api/balance${params}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => {
+        if (!j.success) return;
+        const txns: { type: string; amount: number }[] = j.data || [];
+        const deposits = txns.filter(t => t.type === "deposit").reduce((s, t) => s + t.amount, 0);
+        const withdrawals = txns.filter(t => t.type === "withdrawal").reduce((s, t) => s + t.amount, 0);
+        const totalPnl = trades.reduce((s, t) => s + (Number(t.pnl) || 0), 0);
+        setAccountBalance(deposits - withdrawals + totalPnl);
+      })
+      .catch(() => {});
+  }, [activeFirm, trades]);
 
   const bal = parseFloat(balance) || 0;
   const risk = parseFloat(riskPct) || 0;
@@ -66,7 +89,15 @@ export default function CalculatorPage() {
         <CardTitle>Inputs</CardTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label>Account Balance (₹)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Account Balance (₹)</Label>
+              {accountBalance != null && (
+                <button type="button" onClick={() => setBalance(String(Math.round(accountBalance)))}
+                  className="flex items-center gap-1 text-[10px] text-blue hover:text-blue/80 transition-colors">
+                  <Wallet size={10} /> Use ₹{accountBalance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                </button>
+              )}
+            </div>
             <input type="number" className="inp" placeholder="e.g. 100000" value={balance} onChange={e => setBalance(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -113,6 +144,11 @@ export default function CalculatorPage() {
                 <div className="text-sm font-mono font-semibold text-ink-100">{distance.toFixed(2)}</div>
               </div>
             </div>
+            <Link href={`/trade/new?pair=${encodeURIComponent(pair)}&entry=${entry}&sl=${sl}&lot=${lot.toFixed(2)}`} className="block mt-4">
+              <Button variant="primary" size="sm" className="w-full justify-center">
+                <Send size={13} /> Use This Setup — New Trade Mein Bhejo
+              </Button>
+            </Link>
           </Card>
 
           <Card className="p-5">
