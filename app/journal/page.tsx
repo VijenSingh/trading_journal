@@ -210,19 +210,23 @@ export default function JournalPage() {
                 {/* Header row */}
                 <button
                   type="button"
-                  className="w-full flex items-center gap-4 p-4 text-left"
+                  className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 text-left"
                   onClick={()=>setOpen(isOpen?null:t._id||null)}
                 >
-                  <Badge variant={(t.type||"BUY")==="BUY"?"green":"red"}>{t.type||"BUY"}</Badge>
-                  <span className="font-semibold text-ink-100">{t.pair || "—"}</span>
-                  <span className="text-xs text-ink-400 font-mono">{t.date} {t.time}</span>
-                  {t.strategy && <span className="text-xs text-ink-400 bg-bg-700 px-2 py-1 rounded-lg">{t.strategy}</span>}
-                  {t.emotion && <span className="text-xs text-ink-400">{t.emotion}</span>}
-                  <span className={cn("ml-auto font-mono font-bold text-sm", (t.pnl||0)>=0?"text-green":"text-red")}>
-                    {formatPnl(t.pnl||0)}
-                  </span>
-                  <Badge variant={(t.pnl||0)>=0?"green":"red"}>{(t.pnl||0)>=0?"PROFIT":"LOSS"}</Badge>
-                  {isOpen ? <ChevronUp size={14} className="text-ink-400 flex-shrink-0" /> : <ChevronDown size={14} className="text-ink-400 flex-shrink-0" />}
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <Badge variant={(t.type||"BUY")==="BUY"?"green":"red"}>{t.type||"BUY"}</Badge>
+                    <span className="font-semibold text-ink-100">{t.pair || "—"}</span>
+                    <span className="text-xs text-ink-400 font-mono whitespace-nowrap">{t.date} {t.time}</span>
+                    {t.strategy && <span className="text-xs text-ink-400 bg-bg-700 px-2 py-1 rounded-lg">{t.strategy}</span>}
+                    {t.emotion && <span className="text-xs text-ink-400">{t.emotion}</span>}
+                  </div>
+                  <div className="flex items-center gap-3 sm:ml-auto flex-shrink-0">
+                    <span className={cn("font-mono font-bold text-sm", (t.pnl||0)>=0?"text-green":"text-red")}>
+                      {formatPnl(t.pnl||0)}
+                    </span>
+                    <Badge variant={(t.pnl||0)>=0?"green":"red"}>{(t.pnl||0)>=0?"PROFIT":"LOSS"}</Badge>
+                    {isOpen ? <ChevronUp size={14} className="text-ink-400 flex-shrink-0" /> : <ChevronDown size={14} className="text-ink-400 flex-shrink-0" />}
+                  </div>
                 </button>
 
                 {/* Expanded body */}
