@@ -8,13 +8,23 @@ export async function GET(req: NextRequest) {
     await connectDB();
     const { searchParams } = new URL(req.url);
     const month = searchParams.get("month");
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
     const pair = searchParams.get("pair");
     const result = searchParams.get("result");
     const propFirm = searchParams.get("propFirm");
     const search = searchParams.get("search");
     const hasScreenshot = searchParams.get("hasScreenshot");
     const query: Record<string, unknown> = {};
-    if (month && /^\d{4}-\d{2}$/.test(month)) query.date = { $gte: `${month}-01`, $lte: `${month}-31` };
+    const isDate = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+    if (isDate(dateFrom) || isDate(dateTo)) {
+      const range: Record<string, string> = {};
+      if (isDate(dateFrom)) range.$gte = dateFrom;
+      if (isDate(dateTo)) range.$lte = dateTo;
+      query.date = range;
+    } else if (month && /^\d{4}-\d{2}$/.test(month)) {
+      query.date = { $gte: `${month}-01`, $lte: `${month}-31` };
+    }
     if (pair) query.pair = pair;
     if (result === "profit") query.pnl = { $gt: 0 };
     if (result === "loss") query.pnl = { $lt: 0 };

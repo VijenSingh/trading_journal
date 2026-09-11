@@ -27,6 +27,8 @@ export default function JournalPage() {
   const [filterPair, setFilterPair] = useState("");
   const [filterResult, setFilterResult] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   // Full unfiltered pair/month list — independent of pagination — so dropdown options stay complete.
   const [allOptions, setAllOptions] = useState<{ pairs: string[]; months: string[] }>({ pairs: [], months: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,12 +44,17 @@ export default function JournalPage() {
     if (activeFirm) params.set("propFirm", activeFirm);
     if (filterPair) params.set("pair", filterPair);
     if (filterResult) params.set("result", filterResult);
-    if (filterMonth) params.set("month", filterMonth);
+    if (dateFrom || dateTo) {
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+    } else if (filterMonth) {
+      params.set("month", filterMonth);
+    }
     if (search) params.set("search", search);
     params.set("limit", String(PAGE_SIZE));
     params.set("skip", String(skip));
     return params;
-  }, [activeFirm, filterPair, filterResult, filterMonth, search]);
+  }, [activeFirm, filterPair, filterResult, filterMonth, dateFrom, dateTo, search]);
 
   const load = useCallback(async (targetPage: number) => {
     setLoading(true);
@@ -81,9 +88,9 @@ export default function JournalPage() {
   }, [activeFirm]);
 
   // Filters/search/firm changed — jump back to page 1.
-  useEffect(() => { setPage(1); }, [activeFirm, filterPair, filterResult, filterMonth, search]);
+  useEffect(() => { setPage(1); }, [activeFirm, filterPair, filterResult, filterMonth, dateFrom, dateTo, search]);
   // Selection is page-scoped — clear it whenever the visible trade list changes.
-  useEffect(() => { setSelected(new Set()); }, [page, filterPair, filterResult, filterMonth, search, activeFirm]);
+  useEffect(() => { setSelected(new Set()); }, [page, filterPair, filterResult, filterMonth, dateFrom, dateTo, search, activeFirm]);
 
   useEffect(() => {
     load(page);
@@ -215,8 +222,8 @@ export default function JournalPage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6 flex-wrap">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
-          <input className="inp pl-9" style={{width:"100%", maxWidth:"220px"}} placeholder="Search trades (sab trades mein)..."
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none" />
+          <input className="inp" style={{width:"100%", maxWidth:"220px", paddingLeft:"2.25rem"}} placeholder="Search trades (sab trades mein)..."
             value={searchInput} onChange={e=>setSearchInput(e.target.value)} />
         </div>
         <select className="inp" style={{minWidth:"120px"}} value={filterPair} onChange={e=>setFilterPair(e.target.value)}>
@@ -228,12 +235,20 @@ export default function JournalPage() {
           <option value="profit">Profit ✅</option>
           <option value="loss">Loss ❌</option>
         </select>
-        <select className="inp" style={{minWidth:"120px"}} value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}>
+        <select className="inp" style={{minWidth:"120px"}} value={filterMonth}
+          onChange={e=>{setFilterMonth(e.target.value); setDateFrom(""); setDateTo("");}}>
           <option value="">All Months</option>
           {months.map(m=><option key={m} value={m}>{getMonthLabel(m)}</option>)}
         </select>
-        {(filterPair||filterResult||filterMonth||searchInput) && (
-          <Button variant="ghost" size="sm" onClick={()=>{setFilterPair("");setFilterResult("");setFilterMonth("");setSearchInput("");setSearch("");}}>
+        <div className="flex items-center gap-1.5">
+          <input type="date" className="inp" style={{minWidth:"140px"}} value={dateFrom}
+            onChange={e=>{setDateFrom(e.target.value); setFilterMonth("");}} />
+          <span className="text-xs text-ink-400">se</span>
+          <input type="date" className="inp" style={{minWidth:"140px"}} value={dateTo}
+            onChange={e=>{setDateTo(e.target.value); setFilterMonth("");}} />
+        </div>
+        {(filterPair||filterResult||filterMonth||dateFrom||dateTo||searchInput) && (
+          <Button variant="ghost" size="sm" onClick={()=>{setFilterPair("");setFilterResult("");setFilterMonth("");setDateFrom("");setDateTo("");setSearchInput("");setSearch("");}}>
             Clear filters
           </Button>
         )}
