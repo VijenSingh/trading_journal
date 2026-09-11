@@ -6,7 +6,7 @@ import { invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, Badge, EmptyState, Loading, Button } from "@/components/ui";
-import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter, Download, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Pencil, ChevronDown, ChevronUp, Search, Filter, Download, Upload, ChevronLeft, ChevronRight, CheckSquare, Square, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -20,6 +20,8 @@ export default function JournalPage() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [filterPair, setFilterPair] = useState("");
@@ -80,6 +82,8 @@ export default function JournalPage() {
 
   // Filters/search/firm changed — jump back to page 1.
   useEffect(() => { setPage(1); }, [activeFirm, filterPair, filterResult, filterMonth, search]);
+  // Selection is page-scoped — clear it whenever the visible trade list changes.
+  useEffect(() => { setSelected(new Set()); }, [page, filterPair, filterResult, filterMonth, search, activeFirm]);
 
   useEffect(() => {
     load(page);
@@ -117,6 +121,43 @@ export default function JournalPage() {
 
   // Server already applied pair/result/month/search filters + pagination.
   const filtered = trades;
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = filtered.length > 0 && filtered.every(t => t._id && selected.has(t._id));
+  const toggleSelectAll = () => {
+    if (allSelected) { setSelected(new Set()); return; }
+    setSelected(new Set(filtered.map(t => t._id!).filter(Boolean)));
+  };
+
+  const bulkExport = () => {
+    const rows = filtered.filter(t => t._id && selected.has(t._id));
+    if (rows.length === 0) return;
+    downloadCsv(`tradermind-selected-${getToday()}.csv`, tradesToCsv(rows));
+    toast.success(`${rows.length} trades exported ✅`);
+  };
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (!confirm(`${ids.length} trades delete karein? Ye undo nahi hoga.`)) return;
+    setBulkDeleting(true);
+    try {
+      const results = await Promise.all(ids.map(id => fetch(`/api/trades/${id}`, { method: "DELETE" }).then(r => r.ok)));
+      const failed = results.filter(ok => !ok).length;
+      toast[failed ? "error" : "success"](failed ? `${ids.length - failed}/${ids.length} deleted, ${failed} fail hui` : `${ids.length} trades deleted ✅`);
+      invalidateTradeData();
+      setSelected(new Set());
+      load(page);
+    } catch { toast.error("Bulk delete failed"); }
+    finally { setBulkDeleting(false); }
+  };
 
   const exportCsv = () => {
     if (filtered.length === 0) { toast.error("Export karne ke liye koi trade nahi"); return; }
@@ -198,6 +239,26 @@ export default function JournalPage() {
         )}
       </div>
 
+      {!loading && filtered.length > 0 && (
+        <div className="flex items-center gap-3 mb-4">
+          <button type="button" onClick={toggleSelectAll}
+            className="flex items-center gap-2 text-xs text-ink-400 hover:text-ink-200 transition-colors">
+            {allSelected ? <CheckSquare size={15} className="text-purple" /> : <Square size={15} />}
+            Is page ke sab select karo
+          </button>
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-ink-400 font-mono">{selected.size} selected</span>
+              <Button variant="ghost" size="sm" onClick={bulkExport}><Download size={12} /> Export</Button>
+              <Button variant="danger" size="sm" onClick={bulkDelete} loading={bulkDeleting}><Trash2 size={12} /> Delete</Button>
+              <button onClick={() => setSelected(new Set())} className="text-ink-400 hover:text-ink-200">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? <Loading /> : filtered.length === 0 ? (
         <EmptyState icon="📭" title="Koi trade nahi mila" sub="Filters change karo ya pehla trade add karo" />
       ) : (
@@ -206,28 +267,34 @@ export default function JournalPage() {
             const isOpen = open === t._id;
             const madesMistakes = t.mistakes?.map(id=>MISTAKES.find(m=>m.id===id)?.name).filter(Boolean);
             return (
-              <Card key={t._id} className={cn("transition-all", isOpen?"border-black/10":"")}>
+              <Card key={t._id} className={cn("transition-all", isOpen?"border-black/10":"", selected.has(t._id||"")&&"border-purple/30 bg-purple/[0.03]")}>
                 {/* Header row */}
-                <button
-                  type="button"
-                  className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 text-left"
-                  onClick={()=>setOpen(isOpen?null:t._id||null)}
-                >
-                  <div className="flex items-center gap-2 flex-wrap min-w-0">
-                    <Badge variant={(t.type||"BUY")==="BUY"?"green":"red"}>{t.type||"BUY"}</Badge>
-                    <span className="font-semibold text-ink-100">{t.pair || "—"}</span>
-                    <span className="text-xs text-ink-400 font-mono whitespace-nowrap">{t.date} {t.time}</span>
-                    {t.strategy && <span className="text-xs text-ink-400 bg-bg-700 px-2 py-1 rounded-lg">{t.strategy}</span>}
-                    {t.emotion && <span className="text-xs text-ink-400">{t.emotion}</span>}
-                  </div>
-                  <div className="flex items-center gap-3 sm:ml-auto flex-shrink-0">
-                    <span className={cn("font-mono font-bold text-sm", (t.pnl||0)>=0?"text-green":"text-red")}>
-                      {formatPnl(t.pnl||0)}
-                    </span>
-                    <Badge variant={(t.pnl||0)>=0?"green":"red"}>{(t.pnl||0)>=0?"PROFIT":"LOSS"}</Badge>
-                    {isOpen ? <ChevronUp size={14} className="text-ink-400 flex-shrink-0" /> : <ChevronDown size={14} className="text-ink-400 flex-shrink-0" />}
-                  </div>
-                </button>
+                <div className="flex items-stretch">
+                  <button type="button" onClick={() => toggleSelect(t._id || "")}
+                    className="flex items-center pl-4 pr-1 text-ink-400 hover:text-purple transition-colors flex-shrink-0">
+                    {selected.has(t._id || "") ? <CheckSquare size={16} className="text-purple" /> : <Square size={16} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 text-left"
+                    onClick={()=>setOpen(isOpen?null:t._id||null)}
+                  >
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <Badge variant={(t.type||"BUY")==="BUY"?"green":"red"}>{t.type||"BUY"}</Badge>
+                      <span className="font-semibold text-ink-100">{t.pair || "—"}</span>
+                      <span className="text-xs text-ink-400 font-mono whitespace-nowrap">{t.date} {t.time}</span>
+                      {t.strategy && <span className="text-xs text-ink-400 bg-bg-700 px-2 py-1 rounded-lg">{t.strategy}</span>}
+                      {t.emotion && <span className="text-xs text-ink-400">{t.emotion}</span>}
+                    </div>
+                    <div className="flex items-center gap-3 sm:ml-auto flex-shrink-0">
+                      <span className={cn("font-mono font-bold text-sm", (t.pnl||0)>=0?"text-green":"text-red")}>
+                        {formatPnl(t.pnl||0)}
+                      </span>
+                      <Badge variant={(t.pnl||0)>=0?"green":"red"}>{(t.pnl||0)>=0?"PROFIT":"LOSS"}</Badge>
+                      {isOpen ? <ChevronUp size={14} className="text-ink-400 flex-shrink-0" /> : <ChevronDown size={14} className="text-ink-400 flex-shrink-0" />}
+                    </div>
+                  </button>
+                </div>
 
                 {/* Expanded body */}
                 {isOpen && (

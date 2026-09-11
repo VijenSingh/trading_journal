@@ -16,8 +16,13 @@ export default function CalculatorPage() {
   const [entry, setEntry] = useState("");
   const [sl, setSl] = useState("");
   const [accountBalance, setAccountBalance] = useState<number | null>(null);
+  const [customPairs, setCustomPairs] = useState<string[]>([]);
   const activeFirm = useActiveFirm();
   const { trades } = useTradeData();
+
+  useEffect(() => {
+    fetch("/api/pairs").then(r => r.json()).then(j => { if (j.success) setCustomPairs(j.data); }).catch(() => {});
+  }, []);
 
   // Remember balance/risk between visits — pure convenience, not sensitive.
   useEffect(() => {
@@ -108,6 +113,7 @@ export default function CalculatorPage() {
             <Label>Pair / Instrument</Label>
             <select className="inp" value={pair} onChange={e => setPair(e.target.value)}>
               {PAIRS.filter(p => p !== "Other").map(p => <option key={p}>{p}</option>)}
+              {customPairs.filter(p => !PAIRS.includes(p)).map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
           <div />

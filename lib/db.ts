@@ -125,6 +125,11 @@ const RuleSchema = new mongoose.Schema(
 );
 RuleSchema.index({ category: 1, order: 1 });
 
+// ─── Custom Pair/Instrument Schema (user-added, beyond the built-in list) ───
+const PairSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+});
+
 export const TradeModel =
   mongoose.models.Trade || mongoose.model("Trade", TradeSchema);
 
@@ -146,3 +151,6 @@ export const AccountTxnModel =
 
 export const RuleModel =
   mongoose.models.Rule || mongoose.model("Rule", RuleSchema);
+
+export const PairModel =
+  mongoose.models.Pair || mongoose.model("Pair", PairSchema);

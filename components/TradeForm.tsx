@@ -64,6 +64,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     return base;
   });
   const [firms, setFirms] = useState<string[]>([]);
+  const [customPairs, setCustomPairs] = useState<string[]>([]);
   const [selectedMistakes, setSelectedMistakes] = useState<number[]>(initialTrade?.mistakes || []);
   const [noMistakes, setNoMistakes] = useState(!!initialTrade?.noMistakesFlag);
   const [loading, setLoading] = useState(false);
@@ -117,6 +118,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
 
   useEffect(() => {
     fetch("/api/propfirms").then(r => r.json()).then(j => { if (j.success) setFirms(j.data); }).catch(() => {});
+    fetch("/api/pairs").then(r => r.json()).then(j => { if (j.success) setCustomPairs(j.data); }).catch(() => {});
   }, []);
 
   const handlePropFirmChange = async (v: string) => {
@@ -135,6 +137,24 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       return;
     }
     set("propFirm", v);
+  };
+
+  const handlePairChange = async (v: string) => {
+    if (v === "__new__") {
+      const name = window.prompt("Naya pair/instrument ka naam likho (e.g. USOIL):");
+      const trimmed = name?.trim();
+      if (!trimmed) return;
+      try {
+        await fetch("/api/pairs", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        setCustomPairs(p => p.includes(trimmed) ? p : [...p, trimmed].sort());
+        set("pair", trimmed);
+      } catch { toast.error("Pair add nahi ho paya"); }
+      return;
+    }
+    set("pair", v);
   };
 
   // ── Auto-calculate P&L whenever entry/exit/lot/pair/type change ──
@@ -365,9 +385,12 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
             {errors.propFirm && <span className="text-[11px] text-red">{errors.propFirm}</span>}
           </FormGroup>
           <FormGroup label="Pair / Instrument" required>
-            <select className={inp(!!errors.pair)} value={form.pair} onChange={e => set("pair", e.target.value)}>
+            <select className={inp(!!errors.pair)} value={form.pair} onChange={e => handlePairChange(e.target.value)}>
               <option value="">Select pair...</option>
-              {PAIRS.map(p => <option key={p}>{p}</option>)}
+              {PAIRS.filter(p => p !== "Other").map(p => <option key={p}>{p}</option>)}
+              {customPairs.filter(p => !PAIRS.includes(p)).map(p => <option key={p}>{p}</option>)}
+              <option value="__new__">+ Naya pair add karo...</option>
+              <option value="Other">Other</option>
             </select>
             {errors.pair && <span className="text-[11px] text-red">{errors.pair}</span>}
           </FormGroup>
