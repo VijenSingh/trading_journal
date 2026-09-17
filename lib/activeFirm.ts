@@ -17,10 +17,12 @@ export function setActiveFirm(firm: string) {
 }
 
 export function useActiveFirm(): string {
-  const [firm, setFirm] = useState("");
+  // Lazy-initialize from localStorage on the very first render (not in an effect
+  // after mount) — otherwise every page briefly renders/fetches with "All Firms"
+  // before correcting, which looks like the firm filter got reset on navigation.
+  const [firm, setFirm] = useState(() => getActiveFirm());
 
   useEffect(() => {
-    setFirm(getActiveFirm());
     const onChange = () => setFirm(getActiveFirm());
     window.addEventListener(EVENT, onChange);
     window.addEventListener("storage", onChange);
