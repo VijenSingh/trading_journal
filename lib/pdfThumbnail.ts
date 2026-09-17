@@ -5,10 +5,11 @@ let workerConfigured = false;
 async function loadPdfjs() {
   const pdfjsLib = await import("pdfjs-dist");
   if (!workerConfigured) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url
-    ).toString();
+    // Served from /public as a plain static file — letting webpack bundle the
+    // worker's own .mjs (via `new URL(..., import.meta.url)`) breaks the Next.js
+    // production build, because its minifier chokes on the worker's top-level
+    // import/export syntax.
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
     workerConfigured = true;
   }
   return pdfjsLib;
