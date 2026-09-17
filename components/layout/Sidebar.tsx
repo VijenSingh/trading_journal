@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, PlusCircle, BookOpen, BarChart3,
   CalendarDays, Target, BookMarked, Brain, TrendingUp,
-  Building2, Menu, X, Calculator, Landmark, ClipboardCheck, Image, Award, Lightbulb,
+  Building2, Menu, X, Calculator, Landmark, ClipboardCheck, Image, Award, Lightbulb, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FirmSwitcher from "./FirmSwitcher";
@@ -60,6 +60,9 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
+  // Login screen has no nav — nothing behind it is reachable yet.
+  const hideForRoute = pathname === "/login";
+
   // Close mobile menu on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
@@ -82,15 +85,25 @@ export default function Sidebar() {
     </div>
   );
 
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    window.location.href = "/login";
+  };
+
   const Footer = () => (
     <div className="px-4 py-4 border-t border-black/[0.05] space-y-2">
       <div className="flex items-center gap-2 px-2">
         <div className="w-2 h-2 rounded-full bg-green animate-pulse" />
         <span className="text-[11px] text-ink-400 font-mono">MongoDB Connected</span>
       </div>
+      <button onClick={logout} className="flex items-center gap-2 px-2 text-[11px] text-ink-400 hover:text-red transition-colors">
+        <LogOut size={12} /> Logout
+      </button>
       <div className="text-[10px] text-ink-500 px-2 font-mono">v2.0.0 — TraderMind</div>
     </div>
   );
+
+  if (hideForRoute) return null;
 
   return (
     <>

@@ -2,7 +2,7 @@
 import { MISTAKES } from "@/lib/types";
 import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
-import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey, cn, downloadJson } from "@/lib/utils";
+import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey, cn, downloadJson, getPatternInsights } from "@/lib/utils";
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
@@ -11,7 +11,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff, Download, Upload } from "lucide-react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff, Download, Upload, Lightbulb } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { MINDSET_STORAGE_KEY, affirmations as mindsetAffirmations } from "@/lib/mindset";
 import { isNotifySupported, isNotifyOptedIn, isNotifyGranted, enableNotifications, disableNotifications, notifyOnce } from "@/lib/notify";
@@ -193,6 +193,12 @@ export default function DashboardClient() {
     finally { setClearing(false); }
   };
   const a = useMemo(() => getAnalytics(trades), [trades]);
+  const topWeakness = useMemo(() => {
+    const warnings = getPatternInsights(trades).filter(i => i.severity === "warning");
+    if (warnings.length === 0) return null;
+    return warnings.sort((x, y) => x.pnlDelta - y.pnlDelta)[0];
+  }, [trades]);
+  const [weaknessDismissed, setWeaknessDismissed] = useState(false);
   const cumData = useMemo(() => getCumulative(trades), [trades]);
   const monthStats = useMemo(() => getMonthStats(trades).slice(-6), [trades]);
   const recent = useMemo(() => [...trades]
@@ -361,6 +367,22 @@ export default function DashboardClient() {
             Ab Padho →
           </Link>
           <button onClick={() => setBannerDismissed(true)} className="text-ink-500 hover:text-ink-300 transition-colors flex-shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {topWeakness && !weaknessDismissed && (
+        <div className="flex items-center gap-3 p-4 mb-6 rounded-xl border border-red/25 bg-red/8">
+          <Lightbulb size={18} className="text-red flex-shrink-0" />
+          <div className="flex-1 text-sm text-ink-200">
+            <span className="font-semibold text-red">Sabse bada weak pattern: {topWeakness.label}.</span>{" "}
+            {topWeakness.winRate}% win rate ({topWeakness.count} trades), {formatPnl(topWeakness.avgPnl)} avg P&L.
+          </div>
+          <Link href="/insights" className="text-xs font-semibold text-red hover:text-red/80 whitespace-nowrap">
+            Details Dekho →
+          </Link>
+          <button onClick={() => setWeaknessDismissed(true)} className="text-ink-500 hover:text-ink-300 transition-colors flex-shrink-0">
             <X size={16} />
           </button>
         </div>

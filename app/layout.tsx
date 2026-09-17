@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
+import MainContent from "@/components/layout/MainContent";
 import PWARegister from "@/components/PWARegister";
 import DataSyncOnFocus from "@/components/DataSyncOnFocus";
 import { Toaster } from "react-hot-toast";
@@ -30,10 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DataSyncOnFocus />
         <div className="flex min-h-screen bg-bg-950">
           <Sidebar />
-          {/* Desktop: margin-left for sidebar. Mobile: padding-top for topbar */}
-          <main className="flex-1 md:ml-[240px] pt-14 md:pt-0 print:ml-0 print:pt-0 min-h-screen w-full overflow-x-hidden">
-            {children}
-          </main>
+          <MainContent>{children}</MainContent>
         </div>
         <Toaster
           position="bottom-right"
