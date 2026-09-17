@@ -130,6 +130,21 @@ const PairSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
 });
 
+// ─── Certificate Schema (evaluation pass / payout proof — multiple allowed) ─
+const CertificateSchema = new mongoose.Schema(
+  {
+    type: { type: String, enum: ["evaluation", "payout"], required: true },
+    label: { type: String, default: "" },
+    propFirm: { type: String, default: "" },
+    fileName: { type: String, default: "" },
+    mimeType: { type: String, default: "" },
+    fileData: { type: String, required: true },
+  },
+  { timestamps: true }
+);
+CertificateSchema.index({ type: 1, createdAt: -1 });
+CertificateSchema.index({ propFirm: 1 });
+
 export const TradeModel =
   mongoose.models.Trade || mongoose.model("Trade", TradeSchema);
 
@@ -154,3 +169,6 @@ export const RuleModel =
 
 export const PairModel =
   mongoose.models.Pair || mongoose.model("Pair", PairSchema);
+
+export const CertificateModel =
+  mongoose.models.Certificate || mongoose.model("Certificate", CertificateSchema);

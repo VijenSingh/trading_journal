@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, PlusCircle, BookOpen, BarChart3,
   CalendarDays, Target, BookMarked, Brain, TrendingUp,
-  Building2, Menu, X, Calculator, Landmark, ClipboardCheck, Image,
+  Building2, Menu, X, Calculator, Landmark, ClipboardCheck, Image, Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FirmSwitcher from "./FirmSwitcher";
@@ -21,6 +21,7 @@ const nav = [
   { href: "/review", icon: ClipboardCheck, label: "Weekly Review" },
   { href: "/gallery", icon: Image, label: "Gallery" },
   { href: "/propfirms", icon: Landmark, label: "Prop Firms" },
+  { href: "/certificates", icon: Award, label: "Certificates" },
   { href: "/mistakes", icon: Target, label: "Mistakes" },
   { href: "/rules", icon: BookMarked, label: "Rules" },
   { href: "/mindset", icon: Brain, label: "Mindset" },

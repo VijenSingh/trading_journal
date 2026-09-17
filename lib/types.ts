@@ -26,6 +26,18 @@ export interface Trade {
   createdAt?: string;
 }
 
+export interface Certificate {
+  _id?: string;
+  type: "evaluation" | "payout";
+  label?: string;
+  propFirm?: string;
+  fileName: string;
+  mimeType: string;
+  fileData: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface MonthStat {
   month: string;
   label: string;

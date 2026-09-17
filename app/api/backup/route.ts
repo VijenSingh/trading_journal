@@ -3,13 +3,13 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import {
   connectDB, TradeModel, PropFirmModel, DailyMistakeModel,
-  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel,
+  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel,
 } from "@/lib/db";
 
 export async function GET() {
   try {
     await connectDB();
-    const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs] = await Promise.all([
+    const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates] = await Promise.all([
       TradeModel.find({}).lean(),
       PropFirmModel.find({}).lean(),
       DailyMistakeModel.find({}).lean(),
@@ -18,12 +18,13 @@ export async function GET() {
       AccountTxnModel.find({}).lean(),
       RuleModel.find({}).lean(),
       PairModel.find({}).lean(),
+      CertificateModel.find({}).lean(),
     ]);
     return NextResponse.json({
       success: true,
       version: 1,
       exportedAt: new Date().toISOString(),
-      data: { trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs },
+      data: { trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates },
     });
   } catch (e) {
     console.error("GET /api/backup:", e);
@@ -53,9 +54,10 @@ export async function POST(req: NextRequest) {
       AccountTxnModel.deleteMany({}),
       RuleModel.deleteMany({}),
       PairModel.deleteMany({}),
+      CertificateModel.deleteMany({}),
     ]);
 
-    const counts = { trades: 0, propFirms: 0, dailyMistakes: 0, goals: 0, transactions: 0, accountTxns: 0, rules: 0, pairs: 0 };
+    const counts = { trades: 0, propFirms: 0, dailyMistakes: 0, goals: 0, transactions: 0, accountTxns: 0, rules: 0, pairs: 0, certificates: 0 };
     if (data.trades?.length) counts.trades = (await TradeModel.insertMany(strip(data.trades), { ordered: false })).length;
     if (data.propFirms?.length) counts.propFirms = (await PropFirmModel.insertMany(strip(data.propFirms), { ordered: false })).length;
     if (data.dailyMistakes?.length) counts.dailyMistakes = (await DailyMistakeModel.insertMany(strip(data.dailyMistakes), { ordered: false })).length;
@@ -64,6 +66,7 @@ export async function POST(req: NextRequest) {
     if (data.accountTxns?.length) counts.accountTxns = (await AccountTxnModel.insertMany(strip(data.accountTxns), { ordered: false })).length;
     if (data.rules?.length) counts.rules = (await RuleModel.insertMany(strip(data.rules), { ordered: false })).length;
     if (data.pairs?.length) counts.pairs = (await PairModel.insertMany(strip(data.pairs), { ordered: false })).length;
+    if (data.certificates?.length) counts.certificates = (await CertificateModel.insertMany(strip(data.certificates), { ordered: false })).length;
 
     return NextResponse.json({ success: true, counts });
   } catch (e) {
