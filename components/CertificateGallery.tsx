@@ -1,9 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Download, Trash2, FileText, X, Pencil, Check, CheckSquare, Square, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button, EmptyState } from "@/components/ui";
 import { cn, downloadDataUrl } from "@/lib/utils";
+import { generatePdfThumbnail } from "@/lib/pdfThumbnail";
 import { Certificate } from "@/lib/types";
 
 interface Props {
@@ -17,6 +18,22 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
   const [viewing, setViewing] = useState<Certificate | null>(null);
   const [editingLabel, setEditingLabel] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
+  const [pdfThumbs, setPdfThumbs] = useState<Record<string, string>>({});
+  const inFlightThumbs = useRef<Set<string>>(new Set());
+
+  // Lazily render a first-page thumbnail for PDF certificates (client-side, via pdf.js)
+  useEffect(() => {
+    certs.forEach(cert => {
+      if (cert.mimeType !== "application/pdf" || !cert._id) return;
+      const id = cert._id;
+      if (pdfThumbs[id] || inFlightThumbs.current.has(id)) return;
+      inFlightThumbs.current.add(id);
+      generatePdfThumbnail(cert.fileData)
+        .then(thumb => setPdfThumbs(prev => ({ ...prev, [id]: thumb })))
+        .catch(() => {})
+        .finally(() => inFlightThumbs.current.delete(id));
+    });
+  }, [certs, pdfThumbs]);
 
   // Lock body scroll while the lightbox is open
   useEffect(() => {
@@ -85,6 +102,24 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
     }
   };
 
+  const handleTypeChange = async (newType: "evaluation" | "payout") => {
+    if (!viewing || viewing.type === newType) return;
+    try {
+      const res = await fetch(`/api/certificates/${viewing._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: newType }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error();
+      setViewing(v => (v ? { ...v, type: newType } : v));
+      toast.success("Type update ho gaya");
+      onChange();
+    } catch {
+      toast.error("Update nahi ho paya");
+    }
+  };
+
   if (certs.length === 0) {
     return <EmptyState icon="🏆" title="Koi certificate nahi mila" sub="Upload button se apna pehla certificate add karo, ya filters check karo" />;
   }
@@ -94,6 +129,7 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {certs.map(cert => {
           const isImage = cert.mimeType.startsWith("image/");
+          const pdfThumb = cert._id ? pdfThumbs[cert._id] : undefined;
           const isSelected = !!cert._id && selected.has(cert._id);
           return (
             <button key={cert._id} type="button" onClick={() => setViewing(cert)}
@@ -104,6 +140,9 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
               {isImage ? (
                 <img src={cert.fileData} alt={cert.label || cert.fileName}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+              ) : pdfThumb ? (
+                <img src={pdfThumb} alt={cert.label || cert.fileName}
+                  className="w-full h-full object-cover bg-white group-hover:scale-105 transition-transform duration-200" />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-ink-400">
                   <FileText size={26} />
@@ -180,9 +219,23 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
                     </button>
                   </div>
                 )}
-                {viewing.createdAt && !editingLabel && (
-                  <div className="text-[11px] text-ink-400 font-mono">{new Date(viewing.createdAt).toLocaleDateString()}</div>
-                )}
+                <div className="flex items-center gap-2 mt-1">
+                  {viewing.createdAt && !editingLabel && (
+                    <div className="text-[11px] text-ink-400 font-mono">{new Date(viewing.createdAt).toLocaleDateString()}</div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => handleTypeChange("evaluation")}
+                      className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all",
+                        viewing.type === "evaluation" ? "bg-purple/15 text-purple border-purple/30" : "bg-bg-700 text-ink-400 border-black/[0.06] hover:text-ink-200")}>
+                      Eval
+                    </button>
+                    <button type="button" onClick={() => handleTypeChange("payout")}
+                      className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all",
+                        viewing.type === "payout" ? "bg-green/15 text-green border-green/30" : "bg-bg-700 text-ink-400 border-black/[0.06] hover:text-ink-200")}>
+                      Payout
+                    </button>
+                  </div>
+                </div>
               </div>
               <button type="button" onClick={() => setViewing(null)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-bg-700 text-ink-300 hover:bg-bg-600 flex-shrink-0 transition-all">

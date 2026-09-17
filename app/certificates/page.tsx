@@ -7,7 +7,7 @@ import { Button, Loading } from "@/components/ui";
 import CertificateGallery from "@/components/CertificateGallery";
 import CertificateUploadModal from "@/components/CertificateUploadModal";
 import { useActiveFirm } from "@/lib/activeFirm";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import { Certificate } from "@/lib/types";
 
 type Tab = "all" | "evaluation" | "payout";
@@ -28,13 +28,14 @@ export default function CertificatesPage() {
   // Certificates page keeps its own firm filter, independent of the sidebar's
   // global switcher — so you can browse one firm's certs without changing
   // every other page's active firm.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const load = useCallback(() => {
     setLoading(true);
     fetch("/api/certificates", { cache: "no-store" })
       .then(r => r.json())
       .then(j => setCerts(j.data || []))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setHasLoadedOnce(true); });
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -53,6 +54,8 @@ export default function CertificatesPage() {
 
   const evalCount = certs.filter(c => c.type === "evaluation").length;
   const payoutCount = certs.filter(c => c.type === "payout").length;
+  // Base64 inflates raw bytes by ~4/3 — approximate the actual storage this feature uses.
+  const totalBytes = useMemo(() => certs.reduce((sum, c) => sum + (c.fileData?.length || 0) * 0.75, 0), [certs]);
 
   const filtered = useMemo(() => {
     let rows = tab === "all" ? certs : certs.filter(c => c.type === tab);
@@ -142,9 +145,15 @@ export default function CertificatesPage() {
         <Button variant="ghost" size="md" onClick={() => setSortOldest(s => !s)} title="Sort order">
           <ArrowUpDown size={14} /> {sortOldest ? "Oldest" : "Newest"}
         </Button>
+
+        {certs.length > 0 && (
+          <span className="text-[11px] text-ink-400 font-mono" title="Certificates yahan base64 ke form mein DB mein store hote hain">
+            {formatBytes(totalBytes)} used
+          </span>
+        )}
       </div>
 
-      {!loading && filtered.length > 0 && (
+      {hasLoadedOnce && filtered.length > 0 && (
         <div className="flex items-center gap-3 mb-4">
           <button type="button" onClick={toggleSelectAll}
             className="flex items-center gap-2 text-xs text-ink-400 hover:text-ink-200 transition-colors">
@@ -165,7 +174,7 @@ export default function CertificatesPage() {
         </div>
       )}
 
-      {loading ? <Loading /> : (
+      {loading && !hasLoadedOnce ? <Loading /> : (
         <CertificateGallery certs={filtered} selected={selected} onToggleSelect={toggleSelect} onChange={load} />
       )}
 

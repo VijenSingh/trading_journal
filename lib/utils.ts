@@ -4,6 +4,12 @@ import { twMerge } from "tailwind-merge";
 
 export function cn(...i: ClassValue[]) { return twMerge(clsx(i)); }
 
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 // Safe string helpers
 const s = (v: unknown): string => (typeof v === "string" ? v : String(v ?? ""));
 const n = (v: unknown): number => (typeof v === "number" && isFinite(v) ? v : parseFloat(String(v ?? 0)) || 0);

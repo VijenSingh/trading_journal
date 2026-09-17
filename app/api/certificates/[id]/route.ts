@@ -8,6 +8,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const update: Record<string, string> = {};
     if (body.label !== undefined) update.label = String(body.label).trim();
     if (body.propFirm !== undefined) update.propFirm = String(body.propFirm).trim();
+    if (body.type !== undefined) {
+      if (!["evaluation", "payout"].includes(body.type)) {
+        return NextResponse.json({ success: false, error: "Invalid type" }, { status: 400 });
+      }
+      update.type = body.type;
+    }
     const updated = await CertificateModel.findByIdAndUpdate(params.id, update, { new: true });
     if (!updated) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     return NextResponse.json({ success: true, data: updated });
