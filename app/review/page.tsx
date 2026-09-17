@@ -5,7 +5,7 @@ import { getAnalytics, formatPnl, cn } from "@/lib/utils";
 import { MISTAKES, Trade } from "@/lib/types";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading, Button } from "@/components/ui";
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Printer } from "lucide-react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -73,15 +73,19 @@ export default function WeeklyReviewPage() {
   return (
     <div className="p-4 md:p-8 page-transition">
       <PageHeader title="Weekly Review" subtitle={thisWeek.label}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
           <Button variant="ghost" size="sm" onClick={() => setOffset(o => o - 1)}>
             <ChevronLeft size={14} /> Pichla Hafta
           </Button>
           <Button variant="ghost" size="sm" disabled={isCurrentWeek} onClick={() => setOffset(o => Math.min(0, o + 1))}>
             Agla Hafta <ChevronRight size={14} />
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => window.print()}>
+            <Printer size={14} /> Download Report
+          </Button>
         </div>
       </PageHeader>
+      <div className="hidden print:block text-xs text-ink-400 font-mono -mt-4 mb-6">TraderMind</div>
 
       {weekTrades.length === 0 ? (
         <EmptyState icon="📅" title="Is hafte koi trade nahi" sub="Is hafte ke liye review karne ko kuch nahi hai" />

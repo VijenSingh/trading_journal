@@ -216,6 +216,21 @@ export function getWeekKey(dateStr?: string): string {
   return `${d.getFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
+// Consecutive calendar days, ending today (or yesterday if today has no trade yet),
+// that have at least one logged trade.
+export function computeJournalStreak(trades: Trade[]): number {
+  const dates = new Set(trades.map(t => t.date));
+  let streak = 0;
+  const d = new Date();
+  if (!dates.has(getToday())) d.setDate(d.getDate() - 1);
+  while (true) {
+    const key = d.toISOString().split("T")[0];
+    if (dates.has(key)) { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
+
 // ─── CSV Export ────────────────────────────────────────────────────────────
 function csvCell(v: unknown): string {
   const str = s(v);

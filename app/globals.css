@@ -163,3 +163,10 @@ textarea.inp { resize: vertical; min-height: 80px; line-height: 1.6; }
   /* Full-width buttons on mobile */
   .btn-primary { width: 100%; justify-content: center; }
 }
+
+/* ── Print (report export via native "Save as PDF") ─────────────────────── */
+@media print {
+  html, body { background: #fff !important; }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .page-transition { animation: none !important; }
+}

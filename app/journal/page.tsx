@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday, csvToTrades } from "@/lib/utils";
+import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday, csvToTrades, computeJournalStreak } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
@@ -32,6 +32,7 @@ export default function JournalPage() {
   const [dateTo, setDateTo] = useState("");
   // Full unfiltered pair/month list — independent of pagination — so dropdown options stay complete.
   const [allOptions, setAllOptions] = useState<{ pairs: string[]; months: string[] }>({ pairs: [], months: [] });
+  const [journalStreak, setJournalStreak] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce search input before it hits the server.
@@ -85,6 +86,7 @@ export default function JournalPage() {
         pairs: Array.from(new Set(all.map(t => t.pair))).sort(),
         months: Array.from(new Set(all.map(t => t.date.slice(0, 7)))).sort().reverse(),
       });
+      setJournalStreak(computeJournalStreak(all));
     } catch {}
   }, [activeFirm]);
 
@@ -229,7 +231,7 @@ export default function JournalPage() {
 
   return (
     <div className="p-4 md:p-8 page-transition">
-      <PageHeader title="Trade Journal" subtitle={`${total} trades logged`}>
+      <PageHeader title="Trade Journal" subtitle={`${total} trades logged${journalStreak > 1 ? ` · 🔥 ${journalStreak} din streak` : ""}`}>
         <input ref={fileInputRef} type="file" accept=".csv" className="hidden"
           onChange={e => handleImportFile(e.target.files?.[0] || null)} />
         <Button variant="ghost" size="sm" onClick={handleImportClick} loading={importing}>

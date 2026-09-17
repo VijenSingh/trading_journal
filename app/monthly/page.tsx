@@ -7,7 +7,7 @@ import { Card, CardTitle, StatCard, EmptyState, Loading, Badge, Button, Label } 
 import { useTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from "recharts";
-import { Target } from "lucide-react";
+import { Target, Printer } from "lucide-react";
 import toast from "react-hot-toast";
 
 function GoalsCard({ trades, activeFirm }: { trades: Trade[]; activeFirm: string }) {
@@ -156,7 +156,14 @@ export default function MonthlyPage() {
 
   return (
     <div className="p-4 md:p-8 page-transition">
-      <PageHeader title="Monthly P&L" subtitle={`${trades.length} trades · ${stats.length} months`} />
+      <PageHeader title="Monthly P&L" subtitle={`${trades.length} trades · ${stats.length} months`}>
+        <Button variant="ghost" size="sm" onClick={() => window.print()} className="print:hidden">
+          <Printer size={14} /> Download Report
+        </Button>
+      </PageHeader>
+      <div className="hidden print:block text-xs text-ink-400 font-mono -mt-4 mb-6">
+        TraderMind · {activeFirm || "All Firms"}
+      </div>
 
       <GoalsCard trades={trades} activeFirm={activeFirm} />
 

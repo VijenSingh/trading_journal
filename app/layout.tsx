@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="flex min-h-screen bg-bg-950">
           <Sidebar />
           {/* Desktop: margin-left for sidebar. Mobile: padding-top for topbar */}
-          <main className="flex-1 md:ml-[240px] pt-14 md:pt-0 min-h-screen w-full overflow-x-hidden">
+          <main className="flex-1 md:ml-[240px] pt-14 md:pt-0 print:ml-0 print:pt-0 min-h-screen w-full overflow-x-hidden">
             {children}
           </main>
         </div>

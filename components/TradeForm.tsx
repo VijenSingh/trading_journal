@@ -76,6 +76,23 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const [compressing, setCompressing] = useState(false);
   const [todayCount, setTodayCount] = useState(0);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [preTradeRules, setPreTradeRules] = useState<{ _id: string; text: string }[]>([]);
+  const [checkedRules, setCheckedRules] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (isEdit) return;
+    fetch("/api/rules").then(r => r.json())
+      .then(j => { if (j.success) setPreTradeRules((j.data || []).filter((r: { category: string }) => r.category === "pre")); })
+      .catch(() => {});
+  }, [isEdit]);
+
+  const toggleRuleCheck = (id: string) => {
+    setCheckedRules(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (isEdit) return;
@@ -316,6 +333,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         setPnlAutoCalc(null);
         setErrors({});
         setScreenshot("");
+        setCheckedRules(new Set());
         setTimeout(() => router.push("/journal"), 800);
       }
       router.refresh();
@@ -353,6 +371,40 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         <div className="mb-5 p-3.5 rounded-xl text-sm font-semibold flex items-center gap-2 border bg-amber/8 text-amber border-amber/20">
           ⚠️ Aaj {form.propFirm ? `${form.propFirm} mein ` : ""}already {todayCount} trade{todayCount > 1 ? "s" : ""} ho chuke hain — overtrade se bacho.
         </div>
+      )}
+
+      {!isEdit && preTradeRules.length > 0 && (
+        <Card className="p-5 md:p-6 mb-5 border-purple/15 bg-purple/[0.03]">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-semibold text-ink-400 uppercase tracking-widest flex items-center gap-2">
+              <CheckCircle2 size={14} className="text-purple" />
+              Pre-Trade Checklist
+            </div>
+            <span className="text-[11px] font-mono text-ink-400">{checkedRules.size}/{preTradeRules.length}</span>
+          </div>
+          <div className="space-y-2">
+            {preTradeRules.map(r => {
+              const checked = checkedRules.has(r._id);
+              return (
+                <button key={r._id} type="button" onClick={() => toggleRuleCheck(r._id)}
+                  className={cn(
+                    "w-full flex items-start gap-2.5 text-left p-2.5 rounded-lg border transition-all",
+                    checked ? "bg-green/8 border-green/20" : "bg-bg-700 border-black/[0.06] hover:border-black/10"
+                  )}>
+                  <div className={cn(
+                    "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                    checked ? "bg-green border-green" : "border-ink-500"
+                  )}>
+                    {checked && <span className="text-white text-[9px] font-bold">✓</span>}
+                  </div>
+                  <span className={cn("text-xs leading-relaxed", checked ? "text-ink-300 line-through" : "text-ink-200")}>
+                    {r.text}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
       )}
 
       {/* ── Section 1: Trade Details ── */}

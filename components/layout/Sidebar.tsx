@@ -94,7 +94,7 @@ export default function Sidebar() {
   return (
     <>
       {/* ── DESKTOP SIDEBAR (≥768px) ── */}
-      <aside className="hidden md:flex fixed top-0 left-0 h-screen w-[240px] bg-bg-900 border-r border-black/[0.05] flex-col z-50">
+      <aside className="hidden md:flex print:hidden fixed top-0 left-0 h-screen w-[240px] bg-bg-900 border-r border-black/[0.05] flex-col z-50">
         <div className="px-6 py-6 border-b border-black/[0.05]">
           <Logo />
         </div>
@@ -108,7 +108,7 @@ export default function Sidebar() {
       </aside>
 
       {/* ── MOBILE TOPBAR (< 768px) ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-bg-900 border-b border-black/[0.05] flex items-center justify-between px-4 z-50">
+      <div className="md:hidden print:hidden fixed top-0 left-0 right-0 h-14 bg-bg-900 border-b border-black/[0.05] flex items-center justify-between px-4 z-50">
         <Logo />
         <button
           onClick={() => setMobileOpen(true)}
