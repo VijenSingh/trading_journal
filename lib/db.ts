@@ -145,6 +145,30 @@ const CertificateSchema = new mongoose.Schema(
 CertificateSchema.index({ type: 1, createdAt: -1 });
 CertificateSchema.index({ propFirm: 1 });
 
+// ─── Login Attempt Schema (brute-force lockout on /api/auth/login) ─────────
+const LoginAttemptSchema = new mongoose.Schema(
+  {
+    ip: { type: String, required: true, unique: true },
+    count: { type: Number, default: 0 },
+    lockedUntil: { type: Date, default: null },
+  },
+  { timestamps: true }
+);
+// Auto-clean stale rows a day after their last activity — keeps the collection small.
+LoginAttemptSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 });
+
+// ─── Push Subscription Schema (Web Push, for reminders when the app is closed) ─
+const PushSubscriptionSchema = new mongoose.Schema(
+  {
+    endpoint: { type: String, required: true, unique: true },
+    keys: {
+      p256dh: { type: String, required: true },
+      auth: { type: String, required: true },
+    },
+  },
+  { timestamps: true }
+);
+
 export const TradeModel =
   mongoose.models.Trade || mongoose.model("Trade", TradeSchema);
 
@@ -172,3 +196,9 @@ export const PairModel =
 
 export const CertificateModel =
   mongoose.models.Certificate || mongoose.model("Certificate", CertificateSchema);
+
+export const LoginAttemptModel =
+  mongoose.models.LoginAttempt || mongoose.model("LoginAttempt", LoginAttemptSchema);
+
+export const PushSubscriptionModel =
+  mongoose.models.PushSubscription || mongoose.model("PushSubscription", PushSubscriptionSchema);

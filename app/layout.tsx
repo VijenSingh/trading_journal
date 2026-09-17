@@ -4,6 +4,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import MainContent from "@/components/layout/MainContent";
 import PWARegister from "@/components/PWARegister";
 import DataSyncOnFocus from "@/components/DataSyncOnFocus";
+import InstallPrompt from "@/components/InstallPrompt";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PWARegister />
         <DataSyncOnFocus />
+        <InstallPrompt />
         <div className="flex min-h-screen bg-bg-950">
           <Sidebar />
           <MainContent>{children}</MainContent>

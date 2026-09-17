@@ -32,6 +32,21 @@ self.addEventListener("fetch", (e) => {
   );
 });
 
+// Server-sent push (via the daily cron reminder) — shows an OS notification even
+// if no TraderMind tab is open, as long as the browser/OS is running.
+self.addEventListener("push", (e) => {
+  let data = { title: "TraderMind", body: "" };
+  try { data = e.data.json(); } catch { data.body = e.data?.text() || ""; }
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: "tradermind-reminder",
+    })
+  );
+});
+
 // Clicking a reminder notification focuses an open TraderMind tab, or opens one.
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
