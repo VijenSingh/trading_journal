@@ -1,4 +1,4 @@
-import { Trade, MonthStat, MONTH_NAMES } from "./types";
+import { Trade, MonthStat, MONTH_NAMES, MISTAKES, EMOTIONS } from "./types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -203,6 +203,70 @@ export function getMistakeFreq(trades: Trade[]) {
   const f: Record<number, number> = {};
   trades.forEach(t => (t.mistakes || []).forEach(m => { f[m] = (f[m] || 0) + 1; }));
   return f;
+}
+
+// ─── Pattern Insights ────────────────────────────────────────────────────────
+// Zero-cost pattern detection — no AI/LLM calls, purely correlates the structured
+// fields already tracked on every trade (mistakes, emotion, tags, strategy, session)
+// against win-rate/avg P&L, so recurring behavioral patterns surface on their own.
+export interface PatternInsight {
+  category: "mistake" | "emotion" | "tag" | "strategy" | "session";
+  label: string;
+  count: number;
+  winRate: number;
+  avgPnl: number;
+  winRateDelta: number;
+  pnlDelta: number;
+  severity: "warning" | "positive";
+}
+
+export function getPatternInsights(trades: Trade[], minSample = 3): PatternInsight[] {
+  if (trades.length < minSample * 2) return [];
+
+  const overallWinRate = (trades.filter(t => (t.pnl || 0) > 0).length / trades.length) * 100;
+  const overallAvgPnl = trades.reduce((s, t) => s + (t.pnl || 0), 0) / trades.length;
+
+  const groups: Record<string, { category: PatternInsight["category"]; label: string; trades: Trade[] }> = {};
+  const addTo = (key: string, category: PatternInsight["category"], label: string, t: Trade) => {
+    const k = `${category}:${key}`;
+    if (!groups[k]) groups[k] = { category, label, trades: [] };
+    groups[k].trades.push(t);
+  };
+
+  trades.forEach(t => {
+    (t.mistakes || []).forEach(mId => {
+      const m = MISTAKES.find(x => x.id === mId);
+      if (m) addTo(String(mId), "mistake", m.name, t);
+    });
+    if (t.emotion) addTo(t.emotion, "emotion", EMOTIONS.find(e => e.value === t.emotion)?.label || t.emotion, t);
+    (t.tags || []).forEach(tag => { if (tag.trim()) addTo(tag.trim().toLowerCase(), "tag", tag.trim(), t); });
+    if (t.strategy) addTo(t.strategy, "strategy", t.strategy, t);
+    if (t.session) addTo(t.session, "session", t.session, t);
+  });
+
+  const insights: PatternInsight[] = [];
+  Object.values(groups).forEach(g => {
+    if (g.trades.length < minSample) return;
+    const wins = g.trades.filter(t => (t.pnl || 0) > 0).length;
+    const winRate = (wins / g.trades.length) * 100;
+    const avgPnl = g.trades.reduce((s, t) => s + (t.pnl || 0), 0) / g.trades.length;
+    const winRateDelta = winRate - overallWinRate;
+    const pnlDelta = avgPnl - overallAvgPnl;
+    const magnitude = Math.max(Math.abs(overallAvgPnl), 50);
+
+    let severity: PatternInsight["severity"] | null = null;
+    if (pnlDelta <= -magnitude * 0.3 || winRateDelta <= -15) severity = "warning";
+    else if (pnlDelta >= magnitude * 0.3 && winRateDelta >= 15) severity = "positive";
+    if (!severity) return;
+
+    insights.push({
+      category: g.category, label: g.label, count: g.trades.length,
+      winRate: Math.round(winRate), avgPnl: Math.round(avgPnl),
+      winRateDelta: Math.round(winRateDelta), pnlDelta: Math.round(pnlDelta), severity,
+    });
+  });
+
+  return insights;
 }
 export function getToday() { return new Date().toISOString().split("T")[0]; }
 export function getNow() { return new Date().toTimeString().slice(0, 5); }
