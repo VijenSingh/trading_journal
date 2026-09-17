@@ -20,6 +20,8 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
   const [labelDraft, setLabelDraft] = useState("");
   const [pdfThumbs, setPdfThumbs] = useState<Record<string, string>>({});
   const inFlightThumbs = useRef<Set<string>>(new Set());
+  const [viewingPdfImage, setViewingPdfImage] = useState<string | null>(null);
+  const [viewingPdfLoading, setViewingPdfLoading] = useState(false);
 
   // Lazily render a first-page thumbnail for PDF certificates (client-side, via pdf.js)
   useEffect(() => {
@@ -46,6 +48,24 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
   useEffect(() => {
     setEditingLabel(false);
     setLabelDraft(viewing?.label || "");
+  }, [viewing]);
+
+  // Render PDFs to an image for the lightbox too — <iframe src="data:application/pdf...">
+  // shows a blank frame on mobile browsers, which have no built-in PDF viewer plugin.
+  useEffect(() => {
+    if (!viewing || viewing.mimeType !== "application/pdf") {
+      setViewingPdfImage(null);
+      setViewingPdfLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setViewingPdfImage(null);
+    setViewingPdfLoading(true);
+    generatePdfThumbnail(viewing.fileData, 1200)
+      .then(img => { if (!cancelled) setViewingPdfImage(img); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setViewingPdfLoading(false); });
+    return () => { cancelled = true; };
   }, [viewing]);
 
   const viewingIndex = viewing ? certs.findIndex(c => c._id === viewing._id) : -1;
@@ -245,8 +265,13 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
             <div className="flex-1 overflow-auto bg-bg-950 flex items-center justify-center min-h-[300px]">
               {viewing.mimeType.startsWith("image/") ? (
                 <img src={viewing.fileData} alt={viewing.label || viewing.fileName} className="max-w-full max-h-[65vh] object-contain" />
+              ) : viewingPdfImage ? (
+                <img src={viewingPdfImage} alt={viewing.label || viewing.fileName} className="max-w-full max-h-[65vh] object-contain bg-white" />
               ) : (
-                <iframe src={viewing.fileData} title={viewing.label || viewing.fileName} className="w-full h-[65vh]" />
+                <div className="flex flex-col items-center gap-2 text-ink-400 py-12">
+                  <FileText size={32} />
+                  <span className="text-xs">{viewingPdfLoading ? "PDF load ho raha hai..." : "Preview nahi ban paya — Download karke dekho"}</span>
+                </div>
               )}
             </div>
             <div className="flex items-center gap-2 px-4 py-3 border-t border-black/[0.06]">

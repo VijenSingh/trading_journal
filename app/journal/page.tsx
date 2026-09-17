@@ -22,6 +22,7 @@ export default function JournalPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [filterPair, setFilterPair] = useState("");
@@ -166,10 +167,33 @@ export default function JournalPage() {
     finally { setBulkDeleting(false); }
   };
 
-  const exportCsv = () => {
-    if (filtered.length === 0) { toast.error("Export karne ke liye koi trade nahi"); return; }
-    downloadCsv(`tradermind-journal-${getToday()}.csv`, tradesToCsv(filtered));
-    toast.success(`${filtered.length} trades exported ✅`);
+  // Export every trade matching the current filters, not just the loaded page —
+  // fetches in batches since the API caps each response at 500 rows.
+  const fetchAllFiltered = async (): Promise<Trade[]> => {
+    const all: Trade[] = [];
+    let skip = 0;
+    while (true) {
+      const params = buildParams(skip);
+      params.set("limit", "500");
+      const res = await fetch("/api/trades?" + params.toString(), { cache: "no-store" });
+      const json = await res.json();
+      const batch: Trade[] = json.data || [];
+      all.push(...batch);
+      if (batch.length < 500 || all.length >= (json.total ?? all.length)) break;
+      skip += 500;
+    }
+    return all;
+  };
+
+  const exportCsv = async () => {
+    if (total === 0) { toast.error("Export karne ke liye koi trade nahi"); return; }
+    setExporting(true);
+    try {
+      const all = await fetchAllFiltered();
+      downloadCsv(`tradermind-journal-${getToday()}.csv`, tradesToCsv(all));
+      toast.success(`${all.length} trades exported ✅`);
+    } catch { toast.error("Export failed"); }
+    finally { setExporting(false); }
   };
 
   const handleImportClick = () => fileInputRef.current?.click();
@@ -211,7 +235,7 @@ export default function JournalPage() {
         <Button variant="ghost" size="sm" onClick={handleImportClick} loading={importing}>
           <Upload size={13} /> Import CSV
         </Button>
-        <Button variant="ghost" size="sm" onClick={exportCsv}>
+        <Button variant="ghost" size="sm" onClick={exportCsv} loading={exporting}>
           <Download size={13} /> Export CSV
         </Button>
         <Link href="/trade/new">
