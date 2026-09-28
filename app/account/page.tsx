@@ -242,7 +242,7 @@ function TradingCalendar({ dailyData }: {
 
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const data = dailyData[dateStr];
-          const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+          const isToday = getToday() === dateStr;
           const hasTrades = !!data && data.trades > 0;
           const pnl = data?.pnl || 0;
           const isProfit = pnl > 0;

@@ -268,7 +268,17 @@ export function getPatternInsights(trades: Trade[], minSample = 3): PatternInsig
 
   return insights;
 }
-export function getToday() { return new Date().toISOString().split("T")[0]; }
+// "YYYY-MM-DD" in the browser's local time. Never use toISOString() for this —
+// it's UTC, so in IST (UTC+5:30) it returns the previous day before 5:30 AM.
+export function toDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+// Today's "YYYY-MM-DD" in IST regardless of the machine's timezone — for server
+// code (Vercel runs in UTC) that must agree with the dates trades are logged under.
+export function getTodayIST(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+}
+export function getToday() { return toDateKey(new Date()); }
 export function getNow() { return new Date().toTimeString().slice(0, 5); }
 export function getThisMonth() { return getToday().slice(0, 7); }
 // ISO-8601 week key, e.g. "2026-W36"
@@ -288,7 +298,7 @@ export function computeJournalStreak(trades: Trade[]): number {
   const d = new Date();
   if (!dates.has(getToday())) d.setDate(d.getDate() - 1);
   while (true) {
-    const key = d.toISOString().split("T")[0];
+    const key = toDateKey(d);
     if (dates.has(key)) { streak++; d.setDate(d.getDate() - 1); }
     else break;
   }

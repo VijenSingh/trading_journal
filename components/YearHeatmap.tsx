@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { Trade } from "@/lib/types";
-import { getDailyBuckets, formatPnl, cn } from "@/lib/utils";
+import { getDailyBuckets, formatPnl, cn, toDateKey } from "@/lib/utils";
 import { Card, CardTitle } from "@/components/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -40,45 +40,35 @@ export default function YearHeatmap({ trades }: { trades: Trade[] }) {
   const [year, setYear] = useState(() => years[years.length - 1]);
   const yearIdx = years.indexOf(year);
 
-  // Build weeks: columns of 7 days (Sun-Sat), from the Sunday on/before Jan 1
-  // through the Saturday on/after Dec 31.
+  // Build one block of week-columns (Sun-Sat) per month. A week that straddles
+  // two months appears in both blocks, with the other month's days hidden — so
+  // e.g. Sep 28 always sits under "Sep", never in the column that holds Oct 1.
   const { weeks, monthCols, monthTotals, maxAbs, yearPnl, tradingDays } = useMemo(() => {
-    const jan1 = new Date(year, 0, 1);
-    const start = new Date(jan1);
-    start.setDate(start.getDate() - start.getDay());
-    const dec31 = new Date(year, 11, 31);
-    const end = new Date(dec31);
-    end.setDate(end.getDate() + (6 - end.getDay()));
-
-    const weeksArr: { date: Date; inYear: boolean; pnl: number; trades: number }[][] = [];
-    let cur = new Date(start);
+    const weeksArr: { date: Date; inMonth: boolean; pnl: number; trades: number }[][] = [];
     let max = 1, totalPnl = 0, days = 0;
     const monthColsArr: { label: string; monthIdx: number; col: number }[] = [];
     const monthTotalsMap: Record<number, number> = {};
-    let lastMonth = -1;
-    let col = 0;
 
-    while (cur <= end) {
-      const week: { date: Date; inYear: boolean; pnl: number; trades: number }[] = [];
-      for (let i = 0; i < 7; i++) {
-        const inYear = cur.getFullYear() === year;
-        const key = cur.toISOString().slice(0, 10);
-        const data = dailyMap[key];
-        if (inYear && cur.getMonth() !== lastMonth && cur.getDate() <= 7) {
-          monthColsArr.push({ label: MONTH_LABELS[cur.getMonth()], monthIdx: cur.getMonth(), col });
-          lastMonth = cur.getMonth();
+    for (let m = 0; m < 12; m++) {
+      monthColsArr.push({ label: MONTH_LABELS[m], monthIdx: m, col: weeksArr.length });
+      const cur = new Date(year, m, 1);
+      cur.setDate(cur.getDate() - cur.getDay());
+      while (cur.getFullYear() < year || (cur.getFullYear() === year && cur.getMonth() <= m)) {
+        const week: { date: Date; inMonth: boolean; pnl: number; trades: number }[] = [];
+        for (let i = 0; i < 7; i++) {
+          const inMonth = cur.getFullYear() === year && cur.getMonth() === m;
+          const data = inMonth ? dailyMap[toDateKey(cur)] : undefined;
+          if (data) {
+            max = Math.max(max, Math.abs(data.pnl));
+            totalPnl += data.pnl;
+            days++;
+            monthTotalsMap[m] = (monthTotalsMap[m] || 0) + data.pnl;
+          }
+          week.push({ date: new Date(cur), inMonth, pnl: data?.pnl || 0, trades: data?.trades || 0 });
+          cur.setDate(cur.getDate() + 1);
         }
-        if (inYear && data) {
-          max = Math.max(max, Math.abs(data.pnl));
-          totalPnl += data.pnl;
-          days++;
-          monthTotalsMap[cur.getMonth()] = (monthTotalsMap[cur.getMonth()] || 0) + data.pnl;
-        }
-        week.push({ date: new Date(cur), inYear, pnl: data?.pnl || 0, trades: data?.trades || 0 });
-        cur.setDate(cur.getDate() + 1);
+        weeksArr.push(week);
       }
-      weeksArr.push(week);
-      col++;
     }
     return { weeks: weeksArr, monthCols: monthColsArr, monthTotals: monthTotalsMap, maxAbs: max, yearPnl: totalPnl, tradingDays: days };
   }, [dailyMap, year]);
@@ -152,11 +142,11 @@ export default function YearHeatmap({ trades }: { trades: Trade[] }) {
               <div key={wi} className="flex flex-col gap-[4px]"
                 style={{ marginRight: GAP, marginLeft: monthStartCols.has(wi) && wi !== 0 ? MONTH_GAP : 0 }}>
                 {week.map((day, di) => {
-                  const hasTrade = day.inYear && day.trades > 0;
+                  const hasTrade = day.inMonth && day.trades > 0;
                   return (
                     <div key={di}
-                      title={day.inYear ? `${day.date.toISOString().slice(0, 10)}: ${hasTrade ? formatPnl(day.pnl) + ` (${day.trades} trade${day.trades > 1 ? "s" : ""})` : "No trades"}` : ""}
-                      className={cn("rounded-[3px] border", day.inYear ? "cursor-default border-black/[0.05]" : "opacity-0 border-transparent")}
+                      title={day.inMonth ? `${toDateKey(day.date)}: ${hasTrade ? formatPnl(day.pnl) + ` (${day.trades} trade${day.trades > 1 ? "s" : ""})` : "No trades"}` : ""}
+                      className={cn("rounded-[3px] border", day.inMonth ? "cursor-default border-black/[0.05]" : "opacity-0 border-transparent")}
                       style={{
                         width: CELL, height: CELL,
                         background: hasTrade ? colorFor(day.pnl, maxAbs) : "rgba(0,0,0,0.06)",

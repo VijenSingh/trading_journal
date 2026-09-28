@@ -55,7 +55,7 @@ export default function MistakesPage() {
     } catch { setAvoided(prev); toast.error("Reset failed — try again"); }
   };
 
-  const displayDate = new Date(today).toLocaleDateString("en-IN", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+  const displayDate = new Date(today + "T00:00:00").toLocaleDateString("en-IN", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
 
   const scoreColor = pct >= 75 ? "text-green" : pct >= 50 ? "text-amber" : "text-red";
   const ringColor = pct >= 75 ? "#10B981" : pct >= 50 ? "#F59E0B" : "#F43F5E";

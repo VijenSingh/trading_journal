@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import { useTradeData } from "@/lib/useTradeData";
-import { getAnalytics, formatPnl, cn } from "@/lib/utils";
+import { getAnalytics, formatPnl, cn, toDateKey } from "@/lib/utils";
 import { MISTAKES, Trade } from "@/lib/types";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading, Button } from "@/components/ui";
@@ -17,14 +17,13 @@ function getWeekRange(offsetWeeks: number) {
   monday.setDate(now.getDate() - day + 1 + offsetWeeks * 7);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return fmt(d);
+    return toDateKey(d);
   });
   const label = `${monday.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${sunday.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
-  return { start: fmt(monday), end: fmt(sunday), days, label };
+  return { start: toDateKey(monday), end: toDateKey(sunday), days, label };
 }
 
 export default function WeeklyReviewPage() {

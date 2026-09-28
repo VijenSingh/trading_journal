@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, DailyMistakeModel } from "@/lib/db";
+import { getTodayIST } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
       const docs = await DailyMistakeModel.find({}).sort({ date: -1 }).limit(90).lean();
       return NextResponse.json({ success: true, data: docs });
     }
-    const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
+    const date = searchParams.get("date") || getTodayIST();
     const doc = await DailyMistakeModel.findOne({ date }).lean();
     return NextResponse.json({ success: true, data: doc || { date, avoided: [] } });
   } catch (e) {

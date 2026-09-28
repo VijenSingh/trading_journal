@@ -3,10 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel, PushSubscriptionModel } from "@/lib/db";
 import { getWebPush } from "@/lib/webpush";
-
-function getToday() {
-  return new Date().toISOString().split("T")[0];
-}
+import { getTodayIST } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -22,7 +19,7 @@ export async function GET(req: NextRequest) {
     const webpush = getWebPush();
     if (!webpush) return NextResponse.json({ success: false, error: "Push not configured" }, { status: 500 });
 
-    const todayCount = await TradeModel.countDocuments({ date: getToday() });
+    const todayCount = await TradeModel.countDocuments({ date: getTodayIST() });
     if (todayCount > 0) {
       return NextResponse.json({ success: true, sent: 0, reason: "Trade already logged today" });
     }

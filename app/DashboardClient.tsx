@@ -2,7 +2,7 @@
 import { MISTAKES } from "@/lib/types";
 import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
-import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, getWeekKey, cn, downloadJson, getPatternInsights } from "@/lib/utils";
+import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, toDateKey, getWeekKey, cn, downloadJson, getPatternInsights } from "@/lib/utils";
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
@@ -23,7 +23,7 @@ function computeStreak(history: { date: string; avoided: number[] }[]): number {
   const d = new Date();
   if (!map.has(getToday())) d.setDate(d.getDate() - 1);
   while (true) {
-    const key = d.toISOString().split("T")[0];
+    const key = toDateKey(d);
     const score = map.get(key);
     if (score !== undefined && score >= 6) { streak++; d.setDate(d.getDate() - 1); }
     else break;
