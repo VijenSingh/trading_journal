@@ -434,9 +434,9 @@ export function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export function downloadDataUrl(dataUrl: string, filename: string) {
+export function downloadFile(url: string, filename: string) {
   const a = document.createElement("a");
-  a.href = dataUrl;
+  a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();

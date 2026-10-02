@@ -33,7 +33,7 @@ export interface Certificate {
   propFirm?: string;
   fileName: string;
   mimeType: string;
-  fileData: string;
+  fileSize?: number; // length of the stored base64 data URL; the file itself is at /api/certificates/[id]/file
   createdAt?: string;
   updatedAt?: string;
 }

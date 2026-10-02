@@ -15,13 +15,12 @@ async function loadPdfjs() {
   return pdfjsLib;
 }
 
-// Renders a PDF's first page to a JPEG data URL, for use as a grid thumbnail.
-export async function generatePdfThumbnail(dataUrl: string, maxWidth = 400): Promise<string> {
+// Renders a PDF's first page (fetched from `url`) to a JPEG data URL, for use as a grid thumbnail.
+export async function generatePdfThumbnail(url: string, maxWidth = 400): Promise<string> {
   const pdfjsLib = await loadPdfjs();
-  const base64 = dataUrl.split(",")[1] || "";
-  const raw = atob(base64);
-  const bytes = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("PDF fetch failed");
+  const bytes = new Uint8Array(await res.arrayBuffer());
 
   const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
   const page = await doc.getPage(1);

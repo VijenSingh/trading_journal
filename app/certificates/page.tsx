@@ -55,7 +55,7 @@ export default function CertificatesPage() {
   const evalCount = certs.filter(c => c.type === "evaluation").length;
   const payoutCount = certs.filter(c => c.type === "payout").length;
   // Base64 inflates raw bytes by ~4/3 — approximate the actual storage this feature uses.
-  const totalBytes = useMemo(() => certs.reduce((sum, c) => sum + (c.fileData?.length || 0) * 0.75, 0), [certs]);
+  const totalBytes = useMemo(() => certs.reduce((sum, c) => sum + (c.fileSize || 0) * 0.75, 0), [certs]);
 
   const filtered = useMemo(() => {
     let rows = tab === "all" ? certs : certs.filter(c => c.type === tab);

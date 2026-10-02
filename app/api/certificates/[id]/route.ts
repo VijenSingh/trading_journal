@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
       update.type = body.type;
     }
-    const updated = await CertificateModel.findByIdAndUpdate(params.id, update, { new: true });
+    const updated = await CertificateModel.findByIdAndUpdate(params.id, update, { new: true }).select("-fileData");
     if (!updated) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     return NextResponse.json({ success: true, data: updated });
   } catch (e) {

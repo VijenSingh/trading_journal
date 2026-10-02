@@ -17,6 +17,27 @@ export default function PropFirmInvestmentCard() {
     fetch("/api/propfirms").then(r => r.json()).then(j => { if (j.success) setFirms(j.data); }).catch(() => {});
   }, []);
 
+  const handlePropFirmChange = async (v: string) => {
+    if (v === "__new__") {
+      const name = window.prompt("Naya prop firm ka naam likho:");
+      const trimmed = name?.trim();
+      if (!trimmed) return;
+      try {
+        const res = await fetch("/api/propfirms", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        if (!res.ok) throw new Error();
+        setFirms(f => f.includes(trimmed) ? f : [...f, trimmed].sort());
+        setForm(f => ({ ...f, propFirm: trimmed }));
+        window.dispatchEvent(new CustomEvent("propfirms-changed"));
+        toast.success(`${trimmed} add ho gaya ✅`);
+      } catch { toast.error("Firm add nahi ho paya"); }
+      return;
+    }
+    setForm(f => ({ ...f, propFirm: v }));
+  };
+
   const add = async () => {
     const amt = parseFloat(form.amount);
     if (!form.propFirm) { toast.error("Prop firm select karo"); return; }
@@ -67,9 +88,10 @@ export default function PropFirmInvestmentCard() {
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-4 p-4 bg-bg-700 rounded-xl">
           <div className="flex flex-col gap-1.5">
             <Label>Prop Firm</Label>
-            <select className="inp" value={form.propFirm} onChange={e => setForm(f => ({ ...f, propFirm: e.target.value }))}>
+            <select className="inp" value={form.propFirm} onChange={e => handlePropFirmChange(e.target.value)}>
               <option value="">Select firm...</option>
               {firms.map(f => <option key={f}>{f}</option>)}
+              <option value="__new__">+ Naya firm add karo...</option>
             </select>
           </div>
           <div className="flex flex-col gap-1.5">

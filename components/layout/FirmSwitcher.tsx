@@ -16,7 +16,12 @@ export default function FirmSwitcher() {
   const loadFirms = () => {
     fetch("/api/propfirms").then(r => r.json()).then(j => { if (j.success) setFirms(j.data); }).catch(() => {});
   };
-  useEffect(loadFirms, []);
+  useEffect(() => {
+    loadFirms();
+    // Firms added from other forms (Trade form, Prop Firms card) show up here too
+    window.addEventListener("propfirms-changed", loadFirms);
+    return () => window.removeEventListener("propfirms-changed", loadFirms);
+  }, []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

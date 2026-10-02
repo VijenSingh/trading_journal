@@ -144,11 +144,13 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       const trimmed = name?.trim();
       if (!trimmed) return;
       try {
-        await fetch("/api/propfirms", {
+        const res = await fetch("/api/propfirms", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: trimmed }),
         });
+        if (!res.ok) throw new Error();
         setFirms(f => f.includes(trimmed) ? f : [...f, trimmed].sort());
+        window.dispatchEvent(new CustomEvent("propfirms-changed"));
         set("propFirm", trimmed);
       } catch { toast.error("Firm add nahi ho paya"); }
       return;

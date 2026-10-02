@@ -3,7 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import { Download, Trash2, FileText, X, Pencil, Check, CheckSquare, Square, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button, EmptyState } from "@/components/ui";
-import { cn, downloadDataUrl } from "@/lib/utils";
+import { cn, downloadFile } from "@/lib/utils";
+
+const fileUrl = (id?: string) => `/api/certificates/${id}/file`;
 import { generatePdfThumbnail } from "@/lib/pdfThumbnail";
 import { Certificate } from "@/lib/types";
 
@@ -30,7 +32,7 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
       const id = cert._id;
       if (pdfThumbs[id] || inFlightThumbs.current.has(id)) return;
       inFlightThumbs.current.add(id);
-      generatePdfThumbnail(cert.fileData)
+      generatePdfThumbnail(fileUrl(id))
         .then(thumb => setPdfThumbs(prev => ({ ...prev, [id]: thumb })))
         .catch(() => {})
         .finally(() => inFlightThumbs.current.delete(id));
@@ -61,7 +63,7 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
     let cancelled = false;
     setViewingPdfImage(null);
     setViewingPdfLoading(true);
-    generatePdfThumbnail(viewing.fileData, 1200)
+    generatePdfThumbnail(fileUrl(viewing._id), 1200)
       .then(img => { if (!cancelled) setViewingPdfImage(img); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setViewingPdfLoading(false); });
@@ -158,7 +160,7 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
                 isSelected ? "border-purple ring-2 ring-purple/30" : "border-black/[0.06]"
               )}>
               {isImage ? (
-                <img src={cert.fileData} alt={cert.label || cert.fileName}
+                <img src={fileUrl(cert._id)} loading="lazy" alt={cert.label || cert.fileName}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
               ) : pdfThumb ? (
                 <img src={pdfThumb} alt={cert.label || cert.fileName}
@@ -264,7 +266,7 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
             </div>
             <div className="flex-1 overflow-auto bg-bg-950 flex items-center justify-center min-h-[300px]">
               {viewing.mimeType.startsWith("image/") ? (
-                <img src={viewing.fileData} alt={viewing.label || viewing.fileName} className="max-w-full max-h-[65vh] object-contain" />
+                <img src={fileUrl(viewing._id)} alt={viewing.label || viewing.fileName} className="max-w-full max-h-[65vh] object-contain" />
               ) : viewingPdfImage ? (
                 <img src={viewingPdfImage} alt={viewing.label || viewing.fileName} className="max-w-full max-h-[65vh] object-contain bg-white" />
               ) : (
@@ -287,7 +289,7 @@ export default function CertificateGallery({ certs, selected, onToggleSelect, on
                 </div>
               )}
               <Button type="button" variant="primary" size="sm"
-                onClick={() => downloadDataUrl(viewing.fileData, viewing.fileName || `${viewing.type}-certificate`)}>
+                onClick={() => downloadFile(fileUrl(viewing._id), viewing.fileName || `${viewing.type}-certificate`)}>
                 <Download size={14} /> Download
               </Button>
               <Button type="button" variant="danger" size="sm" className="ml-auto" onClick={() => handleDelete(viewing._id!)}>

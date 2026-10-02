@@ -6,6 +6,8 @@ import { Button } from "@/components/ui";
 import { cn, fileToDataUrl, compressImage } from "@/lib/utils";
 
 const MAX_SIZE_MB = 8;
+// PDFs upload uncompressed as base64 (~4/3 size); Vercel rejects request bodies over 4.5MB.
+const MAX_PDF_MB = 3;
 const ACCEPT = "image/*,application/pdf";
 
 interface Props {
@@ -42,7 +44,8 @@ export default function CertificateUploadModal({ defaultType, defaultFirm, onClo
     for (const f of incoming) {
       const isAllowed = f.type.startsWith("image/") || f.type === "application/pdf";
       if (!isAllowed) { toast.error(`${f.name}: sirf image ya PDF allowed`); continue; }
-      if (f.size > MAX_SIZE_MB * 1024 * 1024) { toast.error(`${f.name}: ${MAX_SIZE_MB}MB se badi hai`); continue; }
+      const maxMb = f.type === "application/pdf" ? MAX_PDF_MB : MAX_SIZE_MB;
+      if (f.size > maxMb * 1024 * 1024) { toast.error(`${f.name}: ${maxMb}MB se badi hai`); continue; }
       valid.push(f);
     }
     if (valid.length) setFiles(prev => [...prev, ...valid]);
@@ -175,7 +178,7 @@ export default function CertificateUploadModal({ defaultType, defaultFirm, onClo
               <span className="text-xs text-ink-400 text-center">
                 {files.length > 0 ? "Aur files add karo" : "Image ya PDF choose karo"} ya yahan drag-drop karo
               </span>
-              <span className="text-[10px] text-ink-500">Max {MAX_SIZE_MB}MB har file, multiple select ho sakti hain</span>
+              <span className="text-[10px] text-ink-500">Image max {MAX_SIZE_MB}MB, PDF max {MAX_PDF_MB}MB, multiple select ho sakti hain</span>
               <input type="file" accept={ACCEPT} multiple className="hidden"
                 onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
             </label>
