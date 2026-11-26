@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { COOKIE_NAME, computeToken, safeEqual, authConfig } from "@/lib/authToken";
 
-const COOKIE_NAME = "tm_auth";
 const PUBLIC_PATHS = new Set([
   "/login",
   "/api/auth/login",
@@ -12,24 +12,24 @@ const PUBLIC_PATHS = new Set([
   "/pdf.worker.min.mjs",
 ]);
 
-async function computeToken(secret: string): Promise<string> {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode("tradermind-authenticated"));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  const secret = process.env.AUTH_SECRET;
-  // No secret configured — auth gate is off (e.g. local dev without env vars set).
-  if (!secret) return NextResponse.next();
+  const cfg = authConfig();
+  // Local dev with neither AUTH_SECRET nor AUTH_PASSWORD set — auth gate is off.
+  if (cfg === "disabled") return NextResponse.next();
+  // Production (or half-configured) without both values: fail closed.
+  if (cfg === "misconfigured") {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ success: false, error: "Auth configured nahi hai (AUTH_SECRET / AUTH_PASSWORD missing)" }, { status: 503 });
+    }
+    return new NextResponse("Auth configured nahi hai — AUTH_SECRET aur AUTH_PASSWORD env variables set karo.", { status: 503 });
+  }
 
-  const expected = await computeToken(secret);
+  const expected = await computeToken(cfg.secret, cfg.password);
   const cookieToken = req.cookies.get(COOKIE_NAME)?.value;
-  if (cookieToken === expected) return NextResponse.next();
+  if (cookieToken && safeEqual(cookieToken, expected)) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Trade } from "@/lib/types";
+import { Trade, screenshotUrl } from "@/lib/types";
 import { formatPnl, cn } from "@/lib/utils";
 import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
@@ -40,7 +40,7 @@ export default function GalleryPage() {
           {trades.map(t => (
             <Link key={t._id} href={`/trade/${t._id}/edit`}
               className="group relative rounded-xl overflow-hidden border border-black/[0.06] bg-bg-700 hover:border-black/20 transition-all">
-              <img src={t.screenshot} alt={`${t.pair} screenshot`}
+              <img src={screenshotUrl(t)} alt={`${t.pair} screenshot`} loading="lazy"
                 className="w-full aspect-video object-cover" />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2.5 pt-6">
                 <div className="flex items-center gap-1.5 mb-1">

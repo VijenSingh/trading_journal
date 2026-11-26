@@ -4,6 +4,7 @@ import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
 import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, toDateKey, getWeekKey, cn, downloadJson, getPatternInsights } from "@/lib/utils";
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
+import { downloadFullBackup, restoreFullBackup } from "@/lib/backupClient";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -73,13 +74,14 @@ export default function DashboardClient() {
 
   const handleBackup = async () => {
     setBackingUp(true);
+    const tid = toast.loading("Backup ban raha hai…");
     try {
-      const res = await fetch("/api/backup", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error();
+      const json = await downloadFullBackup(msg => toast.loading(msg, { id: tid }));
       downloadJson(`tradermind-backup-${getToday()}.json`, json);
-      toast.success("Backup download ho gaya ✅");
-    } catch { toast.error("Backup failed — try again"); }
+      toast.success("Backup download ho gaya ✅", { id: tid });
+    } catch (e) {
+      toast.error(`Backup failed — ${e instanceof Error ? e.message : "try again"}`, { id: tid });
+    }
     finally { setBackingUp(false); }
   };
 
@@ -100,18 +102,18 @@ export default function DashboardClient() {
   const confirmRestore = async () => {
     if (!pendingRestore) return;
     setRestoring(true);
+    const tid = toast.loading("Restore shuru…");
     try {
-      const res = await fetch("/api/backup", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pendingRestore),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || "Restore failed");
-      toast.success("Data restore ho gaya ✅ — page reload ho raha hai");
+      await restoreFullBackup(pendingRestore, msg => toast.loading(msg, { id: tid }));
+      toast.success("Data restore ho gaya ✅ — page reload ho raha hai", { id: tid });
       invalidateTradeData();
       invalidatePropFirmAccounts();
       setPendingRestore(null);
       setTimeout(() => window.location.reload(), 800);
-    } catch { toast.error("Restore failed — try again"); setRestoring(false); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Restore failed — try again", { id: tid, duration: 8000 });
+      setRestoring(false);
+    }
   };
 
   useEffect(() => {

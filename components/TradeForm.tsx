@@ -188,14 +188,22 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       return;
     }
 
+    // Only pairs with a known contract size can be auto-calculated. Guessing for a custom
+    // pair (an index, a stock, "XAUUSD" typed by hand) produced absurd values; the user
+    // enters P&L manually for those instead.
+    const pipVal = PIP_VALUES[pair];
+    if (pipVal === undefined) {
+      setPnlAutoCalc(null);
+      return;
+    }
+
     // Price difference per unit
     const diff = form.type === "BUY" ? (exit - entry) : (entry - exit);
-    const pipVal = PIP_VALUES[pair] ?? 100;
 
     let autoP: number;
     if (pair === "XAUUSD (Gold)") {
-      // Gold uses a special pip scale but still follows the pip value table.
-      autoP = diff * pipVal * lot;
+      // 1 lot = 100 oz; a pip is $0.10, worth pipVal ($10) per lot → $100 per $1 move per lot.
+      autoP = (diff / 0.1) * pipVal * lot;
     } else if (["NASDAQ", "US30", "SP500"].includes(pair)) {
       // Indices: diff × lot × 1
       autoP = diff * lot;

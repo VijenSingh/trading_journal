@@ -2,17 +2,10 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, LoginAttemptModel } from "@/lib/db";
+import { COOKIE_NAME, computeToken, safeEqual } from "@/lib/authToken";
 
-const COOKIE_NAME = "tm_auth";
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
-
-async function computeToken(secret: string): Promise<string> {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode("tradermind-authenticated"));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
 
 function getIp(req: NextRequest): string {
   const fwd = req.headers.get("x-forwarded-for");
@@ -42,7 +35,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (typeof password !== "string" || password !== expectedPassword) {
+    if (typeof password !== "string" || !safeEqual(password, expectedPassword)) {
       const nextCount = (attempt?.count || 0) + 1;
       const locked = nextCount >= MAX_ATTEMPTS;
       await LoginAttemptModel.findOneAndUpdate(
@@ -62,7 +55,7 @@ export async function POST(req: NextRequest) {
     // Correct password — clear this IP's attempt history.
     await LoginAttemptModel.deleteOne({ ip });
 
-    const token = await computeToken(secret);
+    const token = await computeToken(secret, expectedPassword);
     const res = NextResponse.json({ success: true });
     res.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
