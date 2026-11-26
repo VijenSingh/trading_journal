@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Trade } from "@/lib/types";
-import { formatPnl, cn, getToday } from "@/lib/utils";
+import { formatPnl, cn, getToday, compactUsd } from "@/lib/utils";
 import { useTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
@@ -476,10 +476,7 @@ export default function AccountPage() {
                 tick={{ fontSize: 10, fill: "#8B85A0", fontFamily: "JetBrains Mono" }}
                 axisLine={false} tickLine={false}
                 domain={[yMin - yPadding, yMax + yPadding]}
-                tickFormatter={v => {
-                  const n = Number(v);
-                  return (n >= 0 ? "+" : "") + (Math.abs(n) >= 1000 ? "$" + (Math.abs(n) / 1000).toFixed(1) + "k" : "$" + Math.abs(n).toFixed(0));
-                }}
+                tickFormatter={v => (Number(v) > 0 ? "+" : "") + compactUsd(v)}
               />
 
               <Tooltip content={<ChartTooltip />} />

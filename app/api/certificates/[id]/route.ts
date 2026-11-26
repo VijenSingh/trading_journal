@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, CertificateModel } from "@/lib/db";
+import { deleteBlobs } from "@/lib/blobFiles";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -14,7 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
       update.type = body.type;
     }
-    const updated = await CertificateModel.findByIdAndUpdate(params.id, update, { new: true }).select("-fileData");
+    const updated = await CertificateModel.findByIdAndUpdate(params.id, update, { new: true }).select("-fileData -filePath");
     if (!updated) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     return NextResponse.json({ success: true, data: updated });
   } catch (e) {
@@ -26,7 +27,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectDB();
-    await CertificateModel.findByIdAndDelete(params.id);
+    const removed = await CertificateModel.findByIdAndDelete(params.id).select("filePath").lean<{ filePath?: string }>();
+    await deleteBlobs([removed?.filePath]);
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("DELETE /api/certificates/[id]:", e);

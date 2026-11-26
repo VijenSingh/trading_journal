@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
-import { blobConfigured, createCloudBackup } from "@/lib/backupServer";
+import { blobConfigured, createCloudBackup, migrateInlineFiles } from "@/lib/backupServer";
 
 // Weekly Vercel Cron (see vercel.json). Public in middleware, so it is guarded here:
 // Vercel sends "Authorization: Bearer <CRON_SECRET>". Without CRON_SECRET set this
@@ -20,7 +20,16 @@ export async function GET(req: NextRequest) {
   }
   try {
     const result = await createCloudBackup();
-    return NextResponse.json({ success: true, ...result });
+    // With a fresh backup in place, move files still kept in the DB (older trades,
+    // restores) into Blob — as many batches as fit in this run; the rest go next week.
+    let moved = 0;
+    const deadline = Date.now() + 40_000;
+    while (Date.now() < deadline) {
+      const m = await migrateInlineFiles();
+      moved += m.moved;
+      if (!m.moved || m.remaining.screenshots + m.remaining.certificates === 0) break;
+    }
+    return NextResponse.json({ success: true, ...result, moved });
   } catch (e) {
     console.error("GET /api/cron/backup:", e);
     return NextResponse.json({ success: false, error: "Backup failed" }, { status: 500 });
