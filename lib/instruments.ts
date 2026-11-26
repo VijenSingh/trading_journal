@@ -64,6 +64,13 @@ export function calcPnl(pair: string, type: "BUY" | "SELL", entry: number, exit:
   return Math.round(diff * spec.pointValue * lots * 100) / 100;
 }
 
+// $ lost if the stop is hit: |entry − SL| × pointValue × lots. null when unknown.
+export function calcRisk(pair: string, entry: number, sl: number, lots: number): number | null {
+  const spec = INSTRUMENTS[pair];
+  if (!spec || !entry || !sl || !lots || entry === sl) return null;
+  return Math.round(Math.abs(entry - sl) * spec.pointValue * lots * 100) / 100;
+}
+
 // Position size for a given USD risk and stop distance. Futures round down to whole
 // contracts (you cannot trade 1.7 NQ); everything else to 0.01 lots.
 export function calcPositionSize(pair: string, riskAmount: number, stopDistance: number): number | null {

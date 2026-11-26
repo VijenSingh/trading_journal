@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn, compactUsd } from "@/lib/utils";
+import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn, compactUsd, getRStats, getHourStats, formatR } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
@@ -78,6 +78,9 @@ export default function AnalyticsPage() {
   // Day of week / month performance (day-level aggregation)
   const dowStats = getDayOfWeekStats(trades);
   const monthTableStats = getMonthTableStats(trades);
+  const rStats = getRStats(trades);
+  const hourStats = getHourStats(trades);
+  const maxBucket = Math.max(1, ...rStats.buckets.map(b => b.count));
 
   // Radar
   const radarData = [
@@ -170,6 +173,37 @@ export default function AnalyticsPage() {
           </div>
 
           <Card className="p-5 mb-6">
+            <CardTitle>R-Multiple (P&L ÷ risk)</CardTitle>
+            {rStats.count === 0 ? (
+              <EmptyState icon="📐" title="Abhi R data nahi" sub="Trade mein SL (ya Risk $) daalo — R apne aap calculate hoga" />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+                  <StatCard label="Expectancy" value={formatR(rStats.avgR)} sub="avg R per trade" color={rStats.avgR >= 0 ? "green" : "red"} />
+                  <StatCard label="Total R" value={formatR(rStats.totalR)} sub={`${rStats.count} trades (${rStats.coverage}%)`} color={rStats.totalR >= 0 ? "green" : "red"} />
+                  <StatCard label="Avg Win" value={formatR(rStats.avgWinR)} color="green" />
+                  <StatCard label="Avg Loss" value={formatR(rStats.avgLossR)} color="red" />
+                  <StatCard label="Best / Worst" value={`${formatR(rStats.bestR)} / ${formatR(rStats.worstR)}`} />
+                </div>
+                <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-2">R distribution</div>
+                <div className="flex items-end gap-2 h-28">
+                  {rStats.buckets.map(b => (
+                    <div key={b.label} className="flex-1 flex flex-col items-center justify-end h-full">
+                      <div className="text-[10px] font-mono text-ink-300 mb-1">{b.count || ""}</div>
+                      <div className={cn("w-full rounded-t-md", b.positive ? "bg-green/60" : "bg-red/60")}
+                        style={{ height: `${(b.count / maxBucket) * 100}%`, minHeight: b.count ? 4 : 0 }} />
+                      <div className="text-[9px] text-ink-500 mt-1 text-center leading-tight">{b.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {rStats.coverage < 100 && (
+                  <div className="text-[10px] text-ink-500 mt-3">{100 - rStats.coverage}% trades mein SL / risk nahi hai, wo R mein shamil nahi.</div>
+                )}
+              </>
+            )}
+          </Card>
+
+          <Card className="p-5 mb-6">
             <CardTitle>Strategy Performance</CardTitle>
             {stratData.length > 0 ? (
               <div className="space-y-3">
@@ -201,6 +235,33 @@ export default function AnalyticsPage() {
             <CardTitle>Day of Week Performance</CardTitle>
             <PerformanceTable rows={dowStats} labelHeader="Day" />
           </Card>
+
+          {hourStats.length > 0 && (
+            <Card className="p-5 mb-6">
+              <CardTitle>Time of Day</CardTitle>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[480px]">
+                  <thead>
+                    <tr className="text-[10px] text-ink-400 uppercase tracking-widest border-b border-black/[0.06]">
+                      <th className="text-left py-2">Hour</th><th className="text-right">Trades</th><th className="text-right">P&L</th>
+                      <th className="text-right">Win %</th><th className="text-right">Avg R</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-black/[0.04]">
+                    {hourStats.map(h => (
+                      <tr key={h.hour}>
+                        <td className="py-2 font-mono text-ink-200">{h.label}</td>
+                        <td className="text-right font-mono">{h.trades}</td>
+                        <td className={cn("text-right font-mono font-semibold", h.pnl >= 0 ? "text-green" : "text-red")}>{formatPnl(h.pnl)}</td>
+                        <td className="text-right font-mono">{h.winRate}%</td>
+                        <td className={cn("text-right font-mono", h.avgR == null ? "text-ink-500" : h.avgR >= 0 ? "text-green" : "text-red")}>{formatR(h.avgR)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
 
           <Card className="p-5 mb-6">
             <CardTitle>Month Performance</CardTitle>

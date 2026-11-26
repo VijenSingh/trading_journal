@@ -1,6 +1,7 @@
 import { Trade, MonthStat, MONTH_NAMES, MISTAKES, EMOTIONS } from "./types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { calcRisk } from "./instruments";
 
 export function cn(...i: ClassValue[]) { return twMerge(clsx(i)); }
 
@@ -155,6 +156,81 @@ export function getAnalytics(trades: Trade[]) {
     worstTrade: worstT ? { pnl: n(worstT.pnl), pair: s(worstT.pair) || "Unknown", date: s(worstT.date) } : null,
   };
 }
+// ─── R-multiple ──────────────────────────────────────────────────────────────
+// Risk of a trade in $: the saved riskAmount, else worked out from entry/SL/lot for
+// instruments with a known contract size (so older trades with an SL get an R too).
+export function tradeRisk(t: Trade): number | null {
+  const saved = n(t.riskAmount);
+  if (saved > 0) return saved;
+  return calcRisk(s(t.pair), n(t.entry), n(t.sl), n(t.lot));
+}
+export function rMultiple(t: Trade): number | null {
+  const risk = tradeRisk(t);
+  return risk ? Math.round((n(t.pnl) / risk) * 100) / 100 : null;
+}
+export function formatR(r: number | null | undefined): string {
+  if (r == null || !isFinite(r)) return "—";
+  return (r > 0 ? "+" : "") + r.toFixed(2) + "R";
+}
+
+export interface RStats {
+  count: number;          // trades with a known risk
+  coverage: number;       // share of all trades that have one (0–100)
+  totalR: number;
+  avgR: number;           // expectancy per trade, in R
+  avgWinR: number;
+  avgLossR: number;
+  bestR: number | null;
+  worstR: number | null;
+  buckets: { label: string; count: number; positive: boolean }[];
+}
+const R_BUCKETS: { label: string; lo: number; hi: number }[] = [
+  { label: "≤ -2R", lo: -Infinity, hi: -2 }, { label: "-2 to -1R", lo: -2, hi: -1 }, { label: "-1 to 0R", lo: -1, hi: 0 },
+  { label: "0 to 1R", lo: 0, hi: 1 }, { label: "1 to 2R", lo: 1, hi: 2 }, { label: "2 to 3R", lo: 2, hi: 3 }, { label: "≥ 3R", lo: 3, hi: Infinity },
+];
+export function getRStats(trades: Trade[]): RStats {
+  const rs = trades.map(rMultiple).filter((r): r is number => r != null);
+  const wins = rs.filter(r => r > 0), losses = rs.filter(r => r < 0);
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return {
+    count: rs.length,
+    coverage: trades.length ? Math.round((rs.length / trades.length) * 100) : 0,
+    totalR: r2(rs.reduce((a, b) => a + b, 0)),
+    avgR: r2(avg(rs)),
+    avgWinR: r2(avg(wins)),
+    avgLossR: r2(avg(losses)),
+    bestR: rs.length ? Math.max(...rs) : null,
+    worstR: rs.length ? Math.min(...rs) : null,
+    // a value on a boundary goes to the bucket above it (exactly -1R → "-1 to 0R")
+    buckets: R_BUCKETS.map(b => ({ label: b.label, count: rs.filter(r => r >= b.lo && r < b.hi).length, positive: b.lo >= 0 })),
+  };
+}
+
+// ─── Time of day (by the hour the trade was logged at) ───────────────────────
+export interface HourStat { hour: number; label: string; trades: number; pnl: number; winRate: number; avgR: number | null }
+export function getHourStats(trades: Trade[]): HourStat[] {
+  const by = new Map<number, Trade[]>();
+  trades.forEach(t => {
+    const m = /^(\d{1,2}):\d{2}/.exec(s(t.time));
+    if (!m) return;
+    const h = parseInt(m[1], 10);
+    if (h < 0 || h > 23) return;
+    (by.get(h) || by.set(h, []).get(h)!).push(t);
+  });
+  return Array.from(by.entries()).sort(([a], [b]) => a - b).map(([hour, ts]) => {
+    const rs = ts.map(rMultiple).filter((r): r is number => r != null);
+    return {
+      hour,
+      label: `${String(hour).padStart(2, "0")}:00–${String((hour + 1) % 24).padStart(2, "0")}:00`,
+      trades: ts.length,
+      pnl: ts.reduce((a, t) => a + n(t.pnl), 0),
+      winRate: Math.round((ts.filter(t => n(t.pnl) > 0).length / ts.length) * 100),
+      avgR: rs.length ? Math.round((rs.reduce((a, b) => a + b, 0) / rs.length) * 100) / 100 : null,
+    };
+  });
+}
+
 // ─── Day-level aggregation (P&L per calendar day) ───────────────────────────
 export interface DayBucket { date: string; pnl: number; trades: number }
 export function getDailyBuckets(trades: Trade[]): DayBucket[] {
@@ -328,13 +404,13 @@ function csvCell(v: unknown): string {
 }
 const CSV_HEADERS = [
   "Date", "Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
-  "P&L", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
+  "P&L", "Risk", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
   "Reasoning", "Lesson", "Rules Followed",
 ];
 export function tradesToCsv(trades: Trade[]): string {
   const rows = trades.map(t => [
     t.date, t.time, t.pair, t.type, t.lot, t.entry, t.sl, t.target, t.exit,
-    t.pnl, t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
+    t.pnl, t.riskAmount || "", t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
     (t.mistakes || []).join("; "), (t.tags || []).join("; "),
     t.reasoning, t.lesson, t.rulesFollowed,
   ].map(csvCell).join(","));
@@ -403,7 +479,7 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
   const col = {
     date: idx("date"), time: idx("time"), pair: idx("pair"), type: idx("type"),
     lot: idx("lot"), entry: idx("entry"), sl: idx("sl"), target: idx("target"), exit: idx("exit"),
-    pnl: idx("p&l"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
+    pnl: idx("p&l"), risk: idx("risk"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
     emotion: idx("emotion"), propFirm: idx("prop firm"), mistakes: idx("mistakes"), tags: idx("tags"),
     reasoning: idx("reasoning"), lesson: idx("lesson"), rulesFollowed: idx("rules followed"),
   };
@@ -441,13 +517,14 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
     };
     const lot = optNum(col.lot, "Lot"), entry = optNum(col.entry, "Entry"), sl = optNum(col.sl, "SL"),
       target = optNum(col.target, "Target"), exit = optNum(col.exit, "Exit"),
-      pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR");
-    if ([lot, entry, sl, target, exit, pips, rr].some(v => v === null)) return;
+      pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR"), risk = optNum(col.risk, "Risk");
+    if ([lot, entry, sl, target, exit, pips, rr, risk].some(v => v === null)) return;
     trades.push({
       date, time: get(col.time), pair,
       type: get(col.type).toUpperCase() === "SELL" ? "SELL" : "BUY",
       lot: lot!, entry: entry!, sl: sl!, target: target!, exit: exit!,
       pnl,
+      riskAmount: Math.abs(risk!),
       pips: pips!, rr: rr!,
       strategy: get(col.strategy),
       session: get(col.session),
