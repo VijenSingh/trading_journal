@@ -19,7 +19,7 @@ const TT = ({ active, payload, label }: any) => {
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color || "#1E1B2E" }}>
           {p.name}: {typeof p.value === "number"
-            ? (p.value >= 0 ? "+" : "") + "₹" + Math.abs(p.value).toLocaleString("en-IN")
+            ? (p.value >= 0 ? "+" : "") + "$" + Math.abs(p.value).toLocaleString("en-US")
             : p.value}
         </div>
       ))}
@@ -149,7 +149,7 @@ export default function AnalyticsPage() {
                     </defs>
                     <XAxis dataKey="name" tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}/>
                     <YAxis tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
-                      tickFormatter={v=>"₹"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
+                      tickFormatter={v=>"$"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
                     <Tooltip content={<TT />} />
                     <Area type="monotone" dataKey="cumulative" name="P&L" stroke="#10B981" fill="url(#eq)" strokeWidth={2} dot={false}/>
                   </AreaChart>

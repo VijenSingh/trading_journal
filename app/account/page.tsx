@@ -76,10 +76,10 @@ function BalanceManager({ totalPnl, activeFirm }: { totalPnl: number; activeFirm
       </div>
 
       <div className="text-3xl font-bold font-mono text-ink-100 mb-1">
-        ₹{balance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+        ${balance.toLocaleString("en-US", { maximumFractionDigits: 0 })}
       </div>
       <div className="text-xs text-ink-400 font-mono mb-4">
-        Deposits: +₹{deposits.toLocaleString("en-IN")} · Withdrawals: -₹{withdrawals.toLocaleString("en-IN")} · Trade P&L: {formatPnl(totalPnl)}
+        Deposits: +${deposits.toLocaleString("en-US")} · Withdrawals: -${withdrawals.toLocaleString("en-US")} · Trade P&L: {formatPnl(totalPnl)}
       </div>
 
       {showForm && (
@@ -92,7 +92,7 @@ function BalanceManager({ totalPnl, activeFirm }: { totalPnl: number; activeFirm
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Amount (₹)</Label>
+            <Label>Amount ($)</Label>
             <input type="number" className="inp" placeholder="e.g. 10000" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -120,7 +120,7 @@ function BalanceManager({ totalPnl, activeFirm }: { totalPnl: number; activeFirm
               </div>
               <div className="flex items-center gap-3">
                 <span className={cn("font-mono font-semibold", t.type === "deposit" ? "text-green" : "text-red")}>
-                  {t.type === "deposit" ? "+" : "-"}₹{t.amount.toLocaleString("en-IN")}
+                  {t.type === "deposit" ? "+" : "-"}${t.amount.toLocaleString("en-US")}
                 </span>
                 <button onClick={() => del(t._id)} className="text-ink-500 hover:text-red transition-colors">
                   <Trash2 size={13} />
@@ -155,12 +155,12 @@ const ChartTooltip = ({ active, payload, label }: any) => {
       <div className="text-ink-300 mb-2 font-sans text-[11px]">{label}</div>
       {cum && (
         <div className={`font-semibold ${Number(cum.value) >= 0 ? "text-green" : "text-red"}`}>
-          Cumulative: {Number(cum.value) >= 0 ? "+" : ""}₹{Math.abs(Number(cum.value)).toLocaleString("en-IN")}
+          Cumulative: {Number(cum.value) >= 0 ? "+" : ""}${Math.abs(Number(cum.value)).toLocaleString("en-US")}
         </div>
       )}
       {daily && (
         <div className={`mt-1 ${Number(daily.value) >= 0 ? "text-green/70" : "text-red/70"}`}>
-          Day P&L: {Number(daily.value) >= 0 ? "+" : ""}₹{Math.abs(Number(daily.value)).toLocaleString("en-IN")}
+          Day P&L: {Number(daily.value) >= 0 ? "+" : ""}${Math.abs(Number(daily.value)).toLocaleString("en-US")}
         </div>
       )}
     </div>
@@ -205,7 +205,7 @@ function TradingCalendar({ dailyData }: {
           <CardTitle className="mb-0">Trading Calendar</CardTitle>
           <div className="flex items-center gap-4 mt-1 text-[11px] font-mono">
             <span className={monthTotal >= 0 ? "text-green" : "text-red"}>
-              {monthTotal >= 0 ? "+" : ""}₹{Math.abs(monthTotal).toLocaleString("en-IN")} this month
+              {monthTotal >= 0 ? "+" : ""}${Math.abs(monthTotal).toLocaleString("en-US")} this month
             </span>
             <span className="text-ink-400">{monthTrades} trades</span>
             {monthTrades > 0 && (
@@ -278,7 +278,7 @@ function TradingCalendar({ dailyData }: {
                     "text-[11px] font-bold font-mono leading-none",
                     isProfit ? "text-green" : "text-red"
                   )}>
-                    {isProfit ? "+" : ""}₹{Math.abs(pnl) >= 1000
+                    {isProfit ? "+" : ""}${Math.abs(pnl) >= 1000
                       ? (Math.abs(pnl) / 1000).toFixed(1) + "k"
                       : Math.abs(pnl).toFixed(0)}
                   </div>
@@ -386,7 +386,7 @@ export default function AccountPage() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <StatCard
           label="Cumulative P&L"
-          value={`${totalPnl >= 0 ? "+" : ""}₹${Math.abs(totalPnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          value={`${totalPnl >= 0 ? "+" : ""}$${Math.abs(totalPnl).toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
           color={isPositive ? "green" : "red"}
           sub={`${trades.length} total trades`}
           icon={isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
@@ -407,7 +407,7 @@ export default function AccountPage() {
         <StatCard
           label="Best Day"
           value={bestDay && dailyMap[bestDay]
-            ? `${dailyMap[bestDay].pnl >= 0 ? "+" : "-"}₹${Math.abs(dailyMap[bestDay].pnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+            ? `${dailyMap[bestDay].pnl >= 0 ? "+" : "-"}$${Math.abs(dailyMap[bestDay].pnl).toLocaleString("en-US", { maximumFractionDigits: 0 })}`
             : "—"}
           color={bestDay && dailyMap[bestDay]?.pnl >= 0 ? "green" : "red"}
           sub={bestDay || "—"}
@@ -415,14 +415,14 @@ export default function AccountPage() {
         <StatCard
           label="Worst Day"
           value={worstDay && dailyMap[worstDay]
-            ? `${dailyMap[worstDay].pnl >= 0 ? "+" : "-"}₹${Math.abs(dailyMap[worstDay].pnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+            ? `${dailyMap[worstDay].pnl >= 0 ? "+" : "-"}$${Math.abs(dailyMap[worstDay].pnl).toLocaleString("en-US", { maximumFractionDigits: 0 })}`
             : "—"}
           color="red"
           sub={worstDay || "—"}
         />
         <StatCard
           label="Max Drawdown"
-          value={`-₹${maxDD.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          value={`-$${maxDD.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
           color={maxDD > 0 ? "red" : "default"}
           sub="Peak se neeche"
           icon={<BarChart2 size={16} />}
@@ -440,7 +440,7 @@ export default function AccountPage() {
             "px-4 py-2 rounded-xl text-sm font-bold font-mono border",
             isPositive ? "bg-green/10 text-green border-green/25" : "bg-red/10 text-red border-red/25"
           )}>
-            {totalPnl >= 0 ? "+" : ""}₹{Math.abs(totalPnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+            {totalPnl >= 0 ? "+" : ""}${Math.abs(totalPnl).toLocaleString("en-US", { maximumFractionDigits: 0 })}
           </div>
         </div>
 
@@ -478,7 +478,7 @@ export default function AccountPage() {
                 domain={[yMin - yPadding, yMax + yPadding]}
                 tickFormatter={v => {
                   const n = Number(v);
-                  return (n >= 0 ? "+" : "") + (Math.abs(n) >= 1000 ? "₹" + (Math.abs(n) / 1000).toFixed(1) + "k" : "₹" + Math.abs(n).toFixed(0));
+                  return (n >= 0 ? "+" : "") + (Math.abs(n) >= 1000 ? "$" + (Math.abs(n) / 1000).toFixed(1) + "k" : "$" + Math.abs(n).toFixed(0));
                 }}
               />
 
@@ -507,8 +507,8 @@ export default function AccountPage() {
             {[
               { label: "Total Profit Days", value: `${profitDays} days`, color: "text-green" },
               { label: "Total Loss Days", value: `${lossDays} days`, color: "text-red" },
-              { label: "Avg Profit Day", value: profitDays ? `+₹${Math.round(Object.values(dailyMap).filter(d => d.pnl > 0).reduce((s, d) => s + d.pnl, 0) / profitDays).toLocaleString("en-IN")}` : "—", color: "text-green" },
-              { label: "Avg Loss Day", value: lossDays ? `-₹${Math.abs(Math.round(Object.values(dailyMap).filter(d => d.pnl < 0).reduce((s, d) => s + d.pnl, 0) / lossDays)).toLocaleString("en-IN")}` : "—", color: "text-red" },
+              { label: "Avg Profit Day", value: profitDays ? `+$${Math.round(Object.values(dailyMap).filter(d => d.pnl > 0).reduce((s, d) => s + d.pnl, 0) / profitDays).toLocaleString("en-US")}` : "—", color: "text-green" },
+              { label: "Avg Loss Day", value: lossDays ? `-$${Math.abs(Math.round(Object.values(dailyMap).filter(d => d.pnl < 0).reduce((s, d) => s + d.pnl, 0) / lossDays)).toLocaleString("en-US")}` : "—", color: "text-red" },
             ].map((s, i) => (
               <div key={i} className="text-center">
                 <div className="text-[10px] text-ink-500 mb-1 uppercase tracking-widest">{s.label}</div>
@@ -538,7 +538,7 @@ export default function AccountPage() {
                     />
                     <span className="absolute inset-0 flex items-center px-3 text-[11px] font-mono font-semibold"
                       style={{ color: isPos ? "#10B981" : "#F43F5E" }}>
-                      {isPos ? "+" : ""}₹{Math.abs(d.dailyPnl).toLocaleString("en-IN")}
+                      {isPos ? "+" : ""}${Math.abs(d.dailyPnl).toLocaleString("en-US")}
                     </span>
                   </div>
                   <div className={`text-xs font-mono w-10 text-right font-bold ${isPos ? "text-green" : "text-red"}`}>

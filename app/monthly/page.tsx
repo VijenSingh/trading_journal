@@ -74,7 +74,7 @@ function GoalsCard({ trades, activeFirm }: { trades: Trade[]; activeFirm: string
         {/* Monthly target */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <Label>Is Mahine Ka Target (₹)</Label>
+            <Label>Is Mahine Ka Target ($)</Label>
             {!editingTarget && <button onClick={() => setEditingTarget(true)} className="text-[11px] text-blue hover:text-blue/80">Edit</button>}
           </div>
           {editingTarget ? (
@@ -86,7 +86,7 @@ function GoalsCard({ trades, activeFirm }: { trades: Trade[]; activeFirm: string
             <>
               <div className="flex justify-between text-xs font-mono mb-1.5">
                 <span className={monthPnl >= 0 ? "text-green" : "text-red"}>{formatPnl(monthPnl)}</span>
-                <span className="text-ink-400">/ ₹{target.toLocaleString("en-IN")}</span>
+                <span className="text-ink-400">/ ${target.toLocaleString("en-US")}</span>
               </div>
               <div className="h-2 bg-bg-700 rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all" style={{ width: `${targetPct}%`, background: monthPnl >= target ? "#10B981" : "#6366F1" }} />
@@ -101,7 +101,7 @@ function GoalsCard({ trades, activeFirm }: { trades: Trade[]; activeFirm: string
         {/* Weekly max loss limit */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <Label>Is Hafte Ki Max Loss Limit (₹)</Label>
+            <Label>Is Hafte Ki Max Loss Limit ($)</Label>
             {!editingLimit && <button onClick={() => setEditingLimit(true)} className="text-[11px] text-blue hover:text-blue/80">Edit</button>}
           </div>
           {editingLimit ? (
@@ -112,8 +112,8 @@ function GoalsCard({ trades, activeFirm }: { trades: Trade[]; activeFirm: string
           ) : limit > 0 ? (
             <>
               <div className="flex justify-between text-xs font-mono mb-1.5">
-                <span className={limitBreached ? "text-red" : "text-ink-300"}>-₹{weekLoss.toLocaleString("en-IN")}</span>
-                <span className="text-ink-400">/ ₹{limit.toLocaleString("en-IN")}</span>
+                <span className={limitBreached ? "text-red" : "text-ink-300"}>-${weekLoss.toLocaleString("en-US")}</span>
+                <span className="text-ink-400">/ ${limit.toLocaleString("en-US")}</span>
               </div>
               <div className="h-2 bg-bg-700 rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all" style={{ width: `${limitPct}%`, background: limitBreached ? "#F43F5E" : "#F59E0B" }} />
@@ -136,7 +136,7 @@ const TT = ({ active, payload, label }: any) => {
       <div className="text-ink-300 mb-1">{label}</div>
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color }}>
-          {p.name}: {(Number(p.value) >= 0 ? "+" : "")}₹{Math.abs(Number(p.value)).toLocaleString("en-IN")}
+          {p.name}: {(Number(p.value) >= 0 ? "+" : "")}${Math.abs(Number(p.value)).toLocaleString("en-US")}
         </div>
       ))}
     </div>
@@ -186,7 +186,7 @@ export default function MonthlyPage() {
                   <XAxis dataKey="label" tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
                     tickFormatter={v=>String(v).slice(0,3)}/>
                   <YAxis tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
-                    tickFormatter={v=>"₹"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
+                    tickFormatter={v=>"$"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
                   <Tooltip content={<TT />}/>
                   <Bar dataKey="pnl" name="P&L" radius={[4,4,0,0]}>
                     {stats.map((m,i)=><Cell key={i} fill={m.pnl>=0?"#10B981":"#F43F5E"} opacity={0.8}/>)}

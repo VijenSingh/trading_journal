@@ -102,7 +102,7 @@ export default function PropFirmInvestmentCard() {
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Amount (₹)</Label>
+            <Label>Amount ($)</Label>
             <input type="number" className="inp" placeholder="e.g. 5000" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -136,10 +136,10 @@ export default function PropFirmInvestmentCard() {
                 <tr key={r.firm} className="border-b border-black/[0.03]">
                   <td className="py-3 px-3 font-semibold text-ink-100">{r.firm}</td>
                   <td className="py-3 px-3 font-mono text-ink-300">{r.accounts}</td>
-                  <td className="py-3 px-3 font-mono text-ink-300">₹{r.investment.toLocaleString("en-IN")}</td>
-                  <td className="py-3 px-3 font-mono text-green">₹{r.payout.toLocaleString("en-IN")}</td>
+                  <td className="py-3 px-3 font-mono text-ink-300">${r.investment.toLocaleString("en-US")}</td>
+                  <td className="py-3 px-3 font-mono text-green">${r.payout.toLocaleString("en-US")}</td>
                   <td className={cn("py-3 px-3 font-mono font-semibold", r.net >= 0 ? "text-green" : "text-red")}>
-                    {r.net >= 0 ? "+" : "-"}₹{Math.abs(r.net).toLocaleString("en-IN")}
+                    {r.net >= 0 ? "+" : "-"}${Math.abs(r.net).toLocaleString("en-US")}
                   </td>
                   <td className={cn("py-3 px-3 font-mono font-semibold", r.roi === null ? "text-ink-500" : r.roi >= 1 ? "text-green" : "text-amber")}>
                     {r.roi === null ? "—" : `${r.roi.toFixed(1)}x`}
@@ -149,10 +149,10 @@ export default function PropFirmInvestmentCard() {
               <tr className="bg-bg-700/50">
                 <td className="py-3 px-3 font-bold text-ink-100">Overall (Sabhi Firms)</td>
                 <td className="py-3 px-3 font-mono font-bold text-ink-100">{overall.accounts}</td>
-                <td className="py-3 px-3 font-mono font-bold text-ink-100">₹{overall.investment.toLocaleString("en-IN")}</td>
-                <td className="py-3 px-3 font-mono font-bold text-green">₹{overall.payout.toLocaleString("en-IN")}</td>
+                <td className="py-3 px-3 font-mono font-bold text-ink-100">${overall.investment.toLocaleString("en-US")}</td>
+                <td className="py-3 px-3 font-mono font-bold text-green">${overall.payout.toLocaleString("en-US")}</td>
                 <td className={cn("py-3 px-3 font-mono font-bold", overall.net >= 0 ? "text-green" : "text-red")}>
-                  {overall.net >= 0 ? "+" : "-"}₹{Math.abs(overall.net).toLocaleString("en-IN")}
+                  {overall.net >= 0 ? "+" : "-"}${Math.abs(overall.net).toLocaleString("en-US")}
                 </td>
                 <td className="py-3 px-3 font-mono font-bold text-ink-100">
                   {overall.investment > 0 ? `${(overall.payout / overall.investment).toFixed(1)}x` : "—"}
@@ -179,7 +179,7 @@ export default function PropFirmInvestmentCard() {
               </div>
               <div className="flex items-center gap-3">
                 <span className={cn("font-mono font-semibold", t.type === "investment" ? "text-red" : "text-green")}>
-                  {t.type === "investment" ? "-" : "+"}₹{t.amount.toLocaleString("en-IN")}
+                  {t.type === "investment" ? "-" : "+"}${t.amount.toLocaleString("en-US")}
                 </span>
                 <button onClick={() => del(t._id)} className="text-ink-500 hover:text-red transition-colors">
                   <Trash2 size={13} />

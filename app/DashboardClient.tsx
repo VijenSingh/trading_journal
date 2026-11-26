@@ -48,7 +48,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="text-ink-300 mb-1">{label}</div>
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color }}>
-          {p.name}: {np(p.value) >= 0 ? "+" : ""}₹{Math.abs(np(p.value)).toLocaleString("en-IN")}
+          {p.name}: {np(p.value) >= 0 ? "+" : ""}${Math.abs(np(p.value)).toLocaleString("en-US")}
         </div>
       ))}
     </div>
@@ -228,9 +228,9 @@ export default function DashboardClient() {
     if (!notifyOn || loading) return;
     const firm = activeFirm ? ` (${activeFirm})` : "";
     if (limitBreached) {
-      notifyOnce("weekly-loss-breach", "🚨 Weekly loss limit cross ho gayi", `Loss -₹${weekLoss.toLocaleString("en-IN")} / ₹${weeklyLossLimit.toLocaleString("en-IN")} limit${firm}. Trading rok do.`);
+      notifyOnce("weekly-loss-breach", "🚨 Weekly loss limit cross ho gayi", `Loss -$${weekLoss.toLocaleString("en-US")} / $${weeklyLossLimit.toLocaleString("en-US")} limit${firm}. Trading rok do.`);
     } else if (limitWarning) {
-      notifyOnce("weekly-loss-warning", "⚠️ Weekly loss limit ke paas", `Loss -₹${weekLoss.toLocaleString("en-IN")} / ₹${weeklyLossLimit.toLocaleString("en-IN")} limit${firm}. Savdhaan raho.`);
+      notifyOnce("weekly-loss-warning", "⚠️ Weekly loss limit ke paas", `Loss -$${weekLoss.toLocaleString("en-US")} / $${weeklyLossLimit.toLocaleString("en-US")} limit${firm}. Savdhaan raho.`);
     }
     if (todayTradeCount > 2) {
       notifyOnce("overtrade", "⚠️ Overtrading alert", `Aaj ${todayTradeCount} trades ho chuke hain${firm}. Zaroori na ho to ruk jao.`);
@@ -334,7 +334,7 @@ export default function DashboardClient() {
           <AlertTriangle size={18} className="text-red flex-shrink-0" />
           <div className="flex-1 text-sm text-ink-200">
             <span className="font-semibold text-red">🚨 Is hafte ki max loss limit cross ho gayi{activeFirm ? ` (${activeFirm})` : ""}!</span>{" "}
-            Loss: <span className="font-mono font-semibold text-red">-₹{weekLoss.toLocaleString("en-IN")}</span> / ₹{weeklyLossLimit.toLocaleString("en-IN")} limit.
+            Loss: <span className="font-mono font-semibold text-red">-${weekLoss.toLocaleString("en-US")}</span> / ${weeklyLossLimit.toLocaleString("en-US")} limit.
             Is hafte ke liye trading rok do.
           </div>
         </div>
@@ -344,7 +344,7 @@ export default function DashboardClient() {
           <AlertTriangle size={18} className="text-amber flex-shrink-0" />
           <div className="flex-1 text-sm text-ink-200">
             <span className="font-semibold text-amber">⚠️ Weekly loss limit ke paas ho{activeFirm ? ` (${activeFirm})` : ""}.</span>{" "}
-            Loss: <span className="font-mono font-semibold text-amber">-₹{weekLoss.toLocaleString("en-IN")}</span> / ₹{weeklyLossLimit.toLocaleString("en-IN")} limit. Savdhaan raho.
+            Loss: <span className="font-mono font-semibold text-amber">-${weekLoss.toLocaleString("en-US")}</span> / ${weeklyLossLimit.toLocaleString("en-US")} limit. Savdhaan raho.
           </div>
         </div>
       )}
@@ -437,7 +437,7 @@ export default function DashboardClient() {
                 </defs>
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                  tickFormatter={v => "₹" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
+                  tickFormatter={v => "$" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="cumulative" name="P&L"
                   stroke={a.totalPnl >= 0 ? "#10B981" : "#F43F5E"}
@@ -502,7 +502,7 @@ export default function DashboardClient() {
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
                   tickFormatter={v => sp(v).slice(0, 3)} />
                 <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                  tickFormatter={v => "₹" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
+                  tickFormatter={v => "$" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                   {monthStats.map((m, i) => (

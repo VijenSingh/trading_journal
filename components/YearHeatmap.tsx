@@ -21,7 +21,7 @@ function colorFor(pnl: number, maxAbs: number): string {
 function compactPnl(v: number): string {
   const abs = Math.abs(v);
   const num = abs >= 1000 ? (abs / 1000).toFixed(abs >= 10000 ? 0 : 1) + "k" : abs.toFixed(0);
-  return (v >= 0 ? "+₹" : "-₹") + num;
+  return (v >= 0 ? "+$" : "-$") + num;
 }
 
 export default function YearHeatmap({ trades }: { trades: Trade[] }) {

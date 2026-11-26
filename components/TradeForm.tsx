@@ -534,13 +534,13 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <Label>
-                P&L (₹ mein) <span className="text-red">*</span>
+                P&L ($ mein) <span className="text-red">*</span>
               </Label>
               <div className="flex items-center gap-2">
                 {pnlAutoCalc !== null && (
                   <span className="text-[10px] text-ink-400 font-mono flex items-center gap-1">
                     <Zap size={10} className="text-green" />
-                    Auto: {pnlAutoCalc >= 0 ? "+" : ""}₹{Math.abs(pnlAutoCalc).toLocaleString("en-IN")}
+                    Auto: {pnlAutoCalc >= 0 ? "+" : ""}${Math.abs(pnlAutoCalc).toLocaleString("en-US")}
                   </span>
                 )}
                 {pnlManualOverride && (
@@ -596,7 +596,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
               )}
               {pnlAutoCalc !== null && pnlManualOverride && parseFloat(form.pnl) !== pnlAutoCalc && (
                 <span className="text-[10px] bg-blue/8 text-blue border border-blue/20 rounded-lg px-2 py-1">
-                  Auto was: {pnlAutoCalc >= 0 ? "+" : ""}₹{Math.abs(pnlAutoCalc).toLocaleString("en-IN")}
+                  Auto was: {pnlAutoCalc >= 0 ? "+" : ""}${Math.abs(pnlAutoCalc).toLocaleString("en-US")}
                 </span>
               )}
             </div>
@@ -619,7 +619,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
             <div>
               <div className="text-xs text-ink-400 mb-1">Trade Result Preview</div>
               <div className={cn("text-2xl font-bold font-mono", isProfit ? "text-green" : pnlVal < 0 ? "text-red" : "text-ink-300")}>
-                {pnlVal >= 0 ? "+₹" : "-₹"}{Math.abs(pnlVal).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                {pnlVal >= 0 ? "+$" : "-$"}{Math.abs(pnlVal).toLocaleString("en-US", { maximumFractionDigits: 2 })}
               </div>
             </div>
             <div className="text-right">
