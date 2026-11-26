@@ -1,7 +1,7 @@
 import { put, list, del, issueSignedToken, presignUrl } from "@vercel/blob";
 import {
   connectDB, TradeModel, PropFirmModel, DailyMistakeModel,
-  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel,
+  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel, AccountModel,
 } from "@/lib/db";
 import { getTodayIST } from "@/lib/utils";
 import { blobPath, blobToDataUrl, uploadDataUrl, deleteBlobs } from "@/lib/blobFiles";
@@ -19,7 +19,7 @@ export function blobConfigured(): boolean {
 
 export async function buildFullBackup() {
   await connectDB();
-  const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates] = await Promise.all([
+  const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates, accounts] = await Promise.all([
     TradeModel.find({}).lean(),
     PropFirmModel.find({}).lean(),
     DailyMistakeModel.find({}).lean(),
@@ -29,6 +29,7 @@ export async function buildFullBackup() {
     RuleModel.find({}).lean(),
     PairModel.find({}).lean(),
     CertificateModel.find({}).lean(),
+    AccountModel.find({}).lean(),
   ]);
 
   // Files kept in Blob are inlined back as data URLs, so a backup file never depends on
@@ -47,7 +48,7 @@ export async function buildFullBackup() {
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
-    data: { trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates },
+    data: { trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates, accounts },
   };
 }
 

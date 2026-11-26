@@ -3,7 +3,7 @@
 const TRADE_FIELDS = [
   "date", "time", "pair", "type", "lot", "entry", "sl", "target", "exit",
   "pnl", "pips", "rr", "strategy", "session", "mistakes", "noMistakesFlag",
-  "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm",
+  "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm", "accounts",
 ] as const;
 
 export function pickTradeFields(body: unknown): Record<string, unknown> {
@@ -12,6 +12,11 @@ export function pickTradeFields(body: unknown): Record<string, unknown> {
   const src = body as Record<string, unknown>;
   for (const k of TRADE_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
+  }
+  // accounts: unique account ids only
+  if ("accounts" in out) {
+    const ids = Array.isArray(out.accounts) ? out.accounts : [];
+    out.accounts = Array.from(new Set(ids.filter((x): x is string => typeof x === "string" && /^[a-f0-9]{24}$/i.test(x))));
   }
   return out;
 }

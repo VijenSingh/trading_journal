@@ -62,10 +62,13 @@ const TradeSchema = new mongoose.Schema(
     screenshot: { type: String, default: "" },     // legacy/fallback: base64 data URL kept in the DB
     screenshotPath: { type: String, default: "" }, // Vercel Blob pathname when the image lives in Blob
     propFirm: { type: String, default: "" },
+    // Accounts this trade ran on (trade copier). pnl is per account, so each one gets it.
+    accounts: { type: [String], default: [] },
   },
   { timestamps: true }
 );
 TradeSchema.index({ date: -1, time: -1 });
+TradeSchema.index({ accounts: 1 });
 TradeSchema.index({ pair: 1 });
 TradeSchema.index({ propFirm: 1 });
 
@@ -102,10 +105,30 @@ const TransactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ─── Prop firm account (one evaluation / funded account at a firm) ──────────
+export const ACCOUNT_STATUSES = ["evaluation", "funded", "passed", "failed", "closed"] as const;
+const AccountSchema = new mongoose.Schema(
+  {
+    propFirm: { type: String, required: true },
+    name: { type: String, required: true },          // e.g. "50K #1"
+    size: { type: Number, required: true, min: 0 },  // starting balance in USD
+    startDate: { type: String, required: true },     // YYYY-MM-DD
+    status: { type: String, enum: ACCOUNT_STATUSES, default: "evaluation" },
+    statusHistory: {
+      type: [{ status: { type: String, enum: ACCOUNT_STATUSES }, date: String, _id: false }],
+      default: [],
+    },
+    notes: { type: String, default: "" },
+  },
+  { timestamps: true }
+);
+AccountSchema.index({ propFirm: 1, startDate: -1 });
+
 // ─── PropFirm Account Transaction Schema (challenge investment / payout) ────
 const AccountTxnSchema = new mongoose.Schema(
   {
     propFirm: { type: String, required: true },
+    accountId: { type: String, default: "" }, // set when the fee/payout belongs to one account
     type: { type: String, enum: ["investment", "payout"], required: true },
     amount: { type: Number, required: true },
     date: { type: String, required: true },
@@ -210,6 +233,9 @@ export const GoalModel =
 
 export const TransactionModel =
   mongoose.models.Transaction || mongoose.model("Transaction", TransactionSchema);
+
+export const AccountModel =
+  mongoose.models.Account || mongoose.model("Account", AccountSchema);
 
 export const AccountTxnModel =
   mongoose.models.AccountTxn || mongoose.model("AccountTxn", AccountTxnSchema);

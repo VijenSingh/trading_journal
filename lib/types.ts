@@ -24,8 +24,40 @@ export interface Trade {
   screenshot?: string;     // only present on single-trade responses; lists send hasScreenshot instead
   hasScreenshot?: boolean;
   propFirm?: string;
+  accounts?: string[]; // account ids this trade ran on (copier); pnl is per account
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type AccountStatus = "evaluation" | "funded" | "passed" | "failed" | "closed";
+export const ACCOUNT_STATUS_LABELS: Record<AccountStatus, string> = {
+  evaluation: "Evaluation", funded: "Funded", passed: "Passed", failed: "Failed / Blown", closed: "Closed",
+};
+// Accounts that can still take trades (pre-ticked in the trade form).
+export const ACTIVE_STATUSES: AccountStatus[] = ["evaluation", "funded"];
+
+export interface PropAccount {
+  _id: string;
+  propFirm: string;
+  name: string;
+  size: number;
+  startDate: string;
+  status: AccountStatus;
+  statusHistory: { status: AccountStatus; date: string }[];
+  notes: string;
+}
+
+// PropAccount + figures computed by /api/accounts
+export interface AccountStats extends PropAccount {
+  trades: number;
+  pnl: number;          // sum of trade P&L on this account
+  payouts: number;
+  fees: number;
+  balance: number;      // size + pnl - payouts
+  peakBalance: number;  // highest balance reached
+  maxDrawdown: number;  // largest peak-to-trough fall of the balance, USD
+  lastTradeDate: string;
+  net: number;          // payouts - fees: what the account has made you so far
 }
 
 // URL of a trade's screenshot; updatedAt busts the (immutable) browser cache after an edit.
