@@ -1,4 +1,4 @@
-name: Build
+name: Build & Test
 
 on:
   push:
@@ -7,13 +7,32 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Where the in-memory MongoDB binary for e2e tests is kept between runs.
+      MONGOMS_DOWNLOAD_DIR: /home/runner/.cache/mongodb-binaries
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-7
       - run: npm ci
-      - run: npm run build
+      - name: Type-check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      # End-to-end tests run the built app against a throwaway in-memory MongoDB.
+      # No secrets are given here, so they never touch the real database or Blob
+      # store (tests/e2e/blob.test.ts is skipped unless E2E_BLOB=1 and a token are set).
+      - name: End-to-end tests
+        run: npm run test:e2e
