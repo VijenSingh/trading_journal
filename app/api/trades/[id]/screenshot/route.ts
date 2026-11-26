@@ -8,7 +8,8 @@ import { blobResponse } from "@/lib/blobFiles";
 // screenshot gets a new URL and the old one can be cached for good.
 const CACHE = "private, max-age=31536000, immutable";
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const trade = await TradeModel.findById(params.id).select("screenshot screenshotPath").lean<{ screenshot?: string; screenshotPath?: string }>();

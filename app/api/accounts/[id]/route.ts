@@ -5,7 +5,8 @@ import { sanitizeRules } from "@/lib/accountRules";
 
 // PATCH  → edit name/size/notes/startDate; a status change is appended to statusHistory
 // DELETE → removes the account, its fee/payout entries, and its id from trades
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const b = await req.json();
@@ -46,7 +47,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const removed = await AccountModel.findByIdAndDelete(params.id);

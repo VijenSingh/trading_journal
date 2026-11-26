@@ -13,7 +13,8 @@ const PUBLIC_PATHS = new Set([
   "/pdf.worker.min.mjs",
 ]);
 
-export async function middleware(req: NextRequest) {
+// Next.js 16 "proxy" (formerly middleware): runs before every matched request, on Node.
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 

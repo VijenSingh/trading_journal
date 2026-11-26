@@ -6,7 +6,8 @@ import { blobResponse } from "@/lib/blobFiles";
 // Serves one certificate's file as raw bytes. The list endpoint omits fileData so
 // the gallery stays small (Vercel caps a response at 4.5MB); the browser fetches
 // each file here instead, and can cache it since a certificate's file never changes.
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const cert = await CertificateModel.findById(params.id).select("fileData filePath mimeType").lean<{ fileData?: string; filePath?: string; mimeType: string }>();

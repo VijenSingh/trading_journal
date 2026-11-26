@@ -6,7 +6,8 @@ import { screenshotUrl } from "@/lib/types";
 
 type TradeDoc = { _id: unknown; screenshot?: string; screenshotPath?: string; updatedAt?: Date };
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const trade = await TradeModel.findById(params.id).lean<TradeDoc>();
@@ -24,7 +25,8 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const removed = await TradeModel.findByIdAndDelete(params.id).lean<TradeDoc>();
@@ -36,7 +38,8 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   let uploaded: string | undefined;
   try {
     await connectDB();
