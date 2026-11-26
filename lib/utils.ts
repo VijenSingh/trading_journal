@@ -207,6 +207,78 @@ export function getRStats(trades: Trade[]): RStats {
   };
 }
 
+// ─── Holding time (entry time → exit time) ───────────────────────────────────
+const toMinutes = (hhmm: string): number | null => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm || "");
+  if (!m) return null;
+  const h = +m[1], mi = +m[2];
+  return h <= 23 && mi <= 59 ? h * 60 + mi : null;
+};
+// Minutes held, or null without both times. An exit earlier than the entry means the
+// trade was held over midnight.
+export function holdMinutes(t: Trade): number | null {
+  const a = toMinutes(s(t.time)), b = toMinutes(s(t.exitTime));
+  if (a == null || b == null) return null;
+  return b >= a ? b - a : b + 1440 - a;
+}
+export function formatDuration(min: number | null | undefined): string {
+  if (min == null) return "—";
+  if (min < 60) return `${Math.round(min)}m`;
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+// "9:05", "09:05:30", "9:05 PM" → "HH:MM" (24h); anything else → ""
+export function normalizeTime(v: string): string {
+  const m = /^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(am|pm)?$/i.exec((v || "").trim());
+  if (!m) return "";
+  let h = +m[1];
+  const mi = +m[2], ap = m[3]?.toLowerCase();
+  if (ap) {
+    if (h < 1 || h > 12) return "";
+    h = (h % 12) + (ap === "pm" ? 12 : 0);
+  }
+  if (h > 23 || mi > 59) return "";
+  return `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+}
+
+export interface HoldBucket { label: string; trades: number; pnl: number; winRate: number; avgR: number | null }
+export interface HoldStats {
+  count: number;              // trades with both times
+  coverage: number;           // % of all trades
+  avgAll: number | null;      // minutes
+  avgWin: number | null;
+  avgLoss: number | null;
+  buckets: HoldBucket[];      // only buckets that have trades
+}
+const HOLD_BUCKETS: { label: string; lo: number; hi: number }[] = [
+  { label: "< 5 min", lo: 0, hi: 5 }, { label: "5–15 min", lo: 5, hi: 15 }, { label: "15–30 min", lo: 15, hi: 30 },
+  { label: "30–60 min", lo: 30, hi: 60 }, { label: "1–2 ghante", lo: 60, hi: 120 }, { label: "2–4 ghante", lo: 120, hi: 240 },
+  { label: "4+ ghante", lo: 240, hi: Infinity },
+];
+export function getHoldStats(trades: Trade[]): HoldStats {
+  const rows = trades.map(t => ({ t, m: holdMinutes(t) })).filter((x): x is { t: Trade; m: number } => x.m != null);
+  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+  const buckets = HOLD_BUCKETS.map(b => {
+    const ts = rows.filter(r => r.m >= b.lo && r.m < b.hi).map(r => r.t);
+    const rs = ts.map(rMultiple).filter((r): r is number => r != null);
+    return {
+      label: b.label,
+      trades: ts.length,
+      pnl: ts.reduce((a, t) => a + n(t.pnl), 0),
+      winRate: ts.length ? Math.round((ts.filter(t => n(t.pnl) > 0).length / ts.length) * 100) : 0,
+      avgR: rs.length ? Math.round((rs.reduce((a, b) => a + b, 0) / rs.length) * 100) / 100 : null,
+    };
+  }).filter(b => b.trades > 0);
+  return {
+    count: rows.length,
+    coverage: trades.length ? Math.round((rows.length / trades.length) * 100) : 0,
+    avgAll: avg(rows.map(r => r.m)),
+    avgWin: avg(rows.filter(r => n(r.t.pnl) > 0).map(r => r.m)),
+    avgLoss: avg(rows.filter(r => n(r.t.pnl) < 0).map(r => r.m)),
+    buckets,
+  };
+}
+
 // ─── Time of day (by the hour the trade was logged at) ───────────────────────
 export interface HourStat { hour: number; label: string; trades: number; pnl: number; winRate: number; avgR: number | null }
 export function getHourStats(trades: Trade[]): HourStat[] {
@@ -403,13 +475,13 @@ function csvCell(v: unknown): string {
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 const CSV_HEADERS = [
-  "Date", "Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
+  "Date", "Time", "Exit Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
   "P&L", "Risk", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
   "Reasoning", "Lesson", "Rules Followed",
 ];
 export function tradesToCsv(trades: Trade[]): string {
   const rows = trades.map(t => [
-    t.date, t.time, t.pair, t.type, t.lot, t.entry, t.sl, t.target, t.exit,
+    t.date, t.time, t.exitTime || "", t.pair, t.type, t.lot, t.entry, t.sl, t.target, t.exit,
     t.pnl, t.riskAmount || "", t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
     (t.mistakes || []).join("; "), (t.tags || []).join("; "),
     t.reasoning, t.lesson, t.rulesFollowed,
@@ -477,7 +549,7 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
   const header = rows[0].map(h => h.trim().toLowerCase());
   const idx = (name: string) => header.indexOf(name);
   const col = {
-    date: idx("date"), time: idx("time"), pair: idx("pair"), type: idx("type"),
+    date: idx("date"), time: idx("time"), exitTime: idx("exit time"), pair: idx("pair"), type: idx("type"),
     lot: idx("lot"), entry: idx("entry"), sl: idx("sl"), target: idx("target"), exit: idx("exit"),
     pnl: idx("p&l"), risk: idx("risk"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
     emotion: idx("emotion"), propFirm: idx("prop firm"), mistakes: idx("mistakes"), tags: idx("tags"),
@@ -520,7 +592,7 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
       pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR"), risk = optNum(col.risk, "Risk");
     if ([lot, entry, sl, target, exit, pips, rr, risk].some(v => v === null)) return;
     trades.push({
-      date, time: get(col.time), pair,
+      date, time: normalizeTime(get(col.time)), exitTime: normalizeTime(get(col.exitTime)), pair,
       type: get(col.type).toUpperCase() === "SELL" ? "SELL" : "BUY",
       lot: lot!, entry: entry!, sl: sl!, target: target!, exit: exit!,
       pnl,
