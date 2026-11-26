@@ -1,4 +1,5 @@
 "use client";
+import { compactUsd } from "@/lib/utils";
 import { Card, CardTitle, StatCard, EmptyState } from "@/components/ui";
 import { Landmark, TrendingUp, TrendingDown } from "lucide-react";
 import {
@@ -63,7 +64,7 @@ export default function PropFirmCharts() {
             <BarChart data={barData} margin={{ top: 5, right: 5, bottom: 0, left: 10 }}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                tickFormatter={v => "$" + (Math.abs(Number(v)) / 1000).toFixed(0) + "k"} />
+                tickFormatter={v => compactUsd(v)} />
               <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="Investment" fill="#F43F5E" radius={[4, 4, 0, 0]} opacity={0.75} />
@@ -99,7 +100,7 @@ export default function PropFirmCharts() {
             </defs>
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-              tickFormatter={v => (Number(v) >= 0 ? "+" : "-") + "$" + (Math.abs(Number(v)) / 1000).toFixed(0) + "k"} />
+              tickFormatter={v => (Number(v) > 0 ? "+" : "") + compactUsd(v)} />
             <Tooltip content={<ChartTooltip />} />
             <Area type="monotone" dataKey="net" name="Net" stroke={overall.net >= 0 ? "#10B981" : "#F43F5E"} fill="url(#netGrad)" strokeWidth={2} dot={false} />
           </AreaChart>

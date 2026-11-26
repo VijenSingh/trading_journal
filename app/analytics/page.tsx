@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn } from "@/lib/utils";
+import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn, compactUsd } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
@@ -149,7 +149,7 @@ export default function AnalyticsPage() {
                     </defs>
                     <XAxis dataKey="name" tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}/>
                     <YAxis tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
-                      tickFormatter={v=>"$"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
+                      tickFormatter={v=>compactUsd(v)}/>
                     <Tooltip content={<TT />} />
                     <Area type="monotone" dataKey="cumulative" name="P&L" stroke="#10B981" fill="url(#eq)" strokeWidth={2} dot={false}/>
                   </AreaChart>

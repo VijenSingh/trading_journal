@@ -24,6 +24,14 @@ export function formatPnl(val: unknown): string {
   const num = n(val);
   return (num >= 0 ? "+$" : "-$") + usd(Math.abs(num));
 }
+// Short label for chart axes: -$500, $0, $850, $1.2k, -$15k. Keeps the sign and
+// small values (dividing everything by 1000 turned $450 and $900 both into "$0k"/"$1k").
+export function compactUsd(val: unknown): string {
+  const num = n(val);
+  const abs = Math.abs(num);
+  const body = abs >= 1000 ? (abs / 1000).toFixed(abs >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k" : abs.toFixed(0);
+  return (num < 0 ? "-$" : "$") + body;
+}
 export function formatCurrency(val: unknown): string {
   return "$" + usd(Math.abs(n(val)));
 }

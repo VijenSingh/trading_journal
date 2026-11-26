@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Trade } from "@/lib/types";
-import { getMonthStats, formatPnl, fmt, cn, getThisMonth, getWeekKey } from "@/lib/utils";
+import { getMonthStats, formatPnl, fmt, cn, getThisMonth, getWeekKey, compactUsd } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading, Badge, Button, Label } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
@@ -186,7 +186,7 @@ export default function MonthlyPage() {
                   <XAxis dataKey="label" tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
                     tickFormatter={v=>String(v).slice(0,3)}/>
                   <YAxis tick={{fontSize:10,fill:"#8B85A0"}} axisLine={false} tickLine={false}
-                    tickFormatter={v=>"$"+Math.abs(Number(v)/1000).toFixed(0)+"k"}/>
+                    tickFormatter={v=>compactUsd(v)}/>
                   <Tooltip content={<TT />}/>
                   <Bar dataKey="pnl" name="P&L" radius={[4,4,0,0]}>
                     {stats.map((m,i)=><Cell key={i} fill={m.pnl>=0?"#10B981":"#F43F5E"} opacity={0.8}/>)}

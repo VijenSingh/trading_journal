@@ -2,7 +2,7 @@
 import { MISTAKES } from "@/lib/types";
 import { useTradeData, invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
-import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, toDateKey, getWeekKey, cn, downloadJson, getPatternInsights } from "@/lib/utils";
+import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, toDateKey, getWeekKey, cn, downloadJson, getPatternInsights, compactUsd } from "@/lib/utils";
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { downloadFullBackup, restoreFullBackup } from "@/lib/backupClient";
 import CloudBackupsModal from "@/components/CloudBackupsModal";
@@ -444,7 +444,7 @@ export default function DashboardClient() {
                 </defs>
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                  tickFormatter={v => "$" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
+                  tickFormatter={v => compactUsd(v)} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="cumulative" name="P&L"
                   stroke={a.totalPnl >= 0 ? "#10B981" : "#F43F5E"}
@@ -509,7 +509,7 @@ export default function DashboardClient() {
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
                   tickFormatter={v => sp(v).slice(0, 3)} />
                 <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                  tickFormatter={v => "$" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
+                  tickFormatter={v => compactUsd(v)} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                   {monthStats.map((m, i) => (
