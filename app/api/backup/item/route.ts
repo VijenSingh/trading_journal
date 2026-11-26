@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel, CertificateModel } from "@/lib/db";
+import { blobToDataUrl } from "@/lib/blobFiles";
 
 // Backup, step 2: one blob at a time — a trade's screenshot or a certificate's file,
 // as the stored data URL. Each one is well under Vercel's 4.5MB response cap.
@@ -13,11 +14,14 @@ export async function GET(req: NextRequest) {
     if (!/^[a-f0-9]{24}$/i.test(id)) {
       return NextResponse.json({ success: false, error: "Invalid id" }, { status: 400 });
     }
+    // Always answered as a data URL, wherever the file lives, so backup files stay self-contained.
     let value: string | undefined;
     if (kind === "trade") {
-      value = (await TradeModel.findById(id).select("screenshot").lean<{ screenshot?: string }>())?.screenshot;
+      const t = await TradeModel.findById(id).select("screenshot screenshotPath").lean<{ screenshot?: string; screenshotPath?: string }>();
+      value = t?.screenshotPath ? await blobToDataUrl(t.screenshotPath) : t?.screenshot;
     } else if (kind === "certificate") {
-      value = (await CertificateModel.findById(id).select("fileData").lean<{ fileData?: string }>())?.fileData;
+      const c = await CertificateModel.findById(id).select("fileData filePath mimeType").lean<{ fileData?: string; filePath?: string; mimeType?: string }>();
+      value = c?.filePath ? await blobToDataUrl(c.filePath, c.mimeType) : c?.fileData;
     } else {
       return NextResponse.json({ success: false, error: "Invalid kind" }, { status: 400 });
     }

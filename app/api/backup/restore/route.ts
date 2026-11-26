@@ -9,6 +9,7 @@ import {
   GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel,
   RestoreChunkModel, RestoreSessionModel,
 } from "@/lib/db";
+import { deleteBlobs } from "@/lib/blobFiles";
 
 // Full restore in three steps, so neither the 4.5MB request cap nor a failure halfway
 // can lose data:
@@ -23,7 +24,8 @@ const MODELS: Record<string, mongoose.Model<any>> = {
 
 const strip = (docs: unknown[]): Record<string, unknown>[] =>
   docs.map((d: any) => {
-    const { _id, __v, _hasScreenshot, fileSize, ...rest } = d || {};
+    // Path fields never come from a backup: files arrive inline and are moved to Blob later.
+    const { _id, __v, _hasScreenshot, fileSize, screenshotPath, filePath, ...rest } = d || {};
     return rest;
   });
 
@@ -82,6 +84,12 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Blob files of the data being replaced; deleted only once the swap has committed.
+      const [oldShots, oldCerts] = await Promise.all([
+        TradeModel.find({ screenshotPath: { $nin: ["", null] } }).select("screenshotPath").lean<{ screenshotPath: string }[]>(),
+        CertificateModel.find({ filePath: { $nin: ["", null] } }).select("filePath").lean<{ filePath: string }[]>(),
+      ]);
+
       const counts: Record<string, number> = {};
       const session = await mongoose.startSession();
       try {
@@ -100,6 +108,7 @@ export async function POST(req: NextRequest) {
         await RestoreChunkModel.deleteMany({ restoreId }).catch(() => {});
         await RestoreSessionModel.deleteOne({ restoreId }).catch(() => {});
       }
+      await deleteBlobs([...oldShots.map(t => t.screenshotPath), ...oldCerts.map(c => c.filePath)]);
       return NextResponse.json({ success: true, counts });
     }
 

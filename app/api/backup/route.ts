@@ -16,8 +16,11 @@ export async function GET() {
     await connectDB();
     const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates] = await Promise.all([
       TradeModel.aggregate([
-        { $addFields: { _hasScreenshot: { $gt: [{ $strLenBytes: { $ifNull: ["$screenshot", ""] } }, 0] } } },
-        { $project: { screenshot: 0 } },
+        { $addFields: { _hasScreenshot: { $or: [
+          { $gt: [{ $strLenBytes: { $ifNull: ["$screenshot", ""] } }, 0] },
+          { $gt: [{ $strLenBytes: { $ifNull: ["$screenshotPath", ""] } }, 0] },
+        ] } } },
+        { $project: { screenshot: 0, screenshotPath: 0 } },
       ]),
       PropFirmModel.find({}).lean(),
       DailyMistakeModel.find({}).lean(),
@@ -26,7 +29,7 @@ export async function GET() {
       AccountTxnModel.find({}).lean(),
       RuleModel.find({}).lean(),
       PairModel.find({}).lean(),
-      CertificateModel.find({}).select("-fileData").lean(),
+      CertificateModel.find({}).select("-fileData -filePath -fileSize").lean(),
     ]);
     return NextResponse.json({
       success: true,

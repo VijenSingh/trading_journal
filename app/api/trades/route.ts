@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel } from "@/lib/db";
 import { pickTradeFields, isDateKey } from "@/lib/tradeFields";
+import { prepareTradeScreenshot, deleteBlobs } from "@/lib/blobFiles";
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,7 +31,10 @@ export async function GET(req: NextRequest) {
     if (result === "profit") query.pnl = { $gt: 0 };
     if (result === "loss") query.pnl = { $lt: 0 };
     if (propFirm) query.propFirm = propFirm;
-    if (hasScreenshot === "true") query.screenshot = { $exists: true, $ne: "" };
+    if (hasScreenshot === "true") {
+      // Stored either in Blob (screenshotPath) or, for older/local trades, inline (screenshot).
+      query.$and = [{ $or: [{ screenshotPath: { $nin: ["", null] } }, { screenshot: { $nin: ["", null] } }] }];
+    }
     if (search && search.trim()) {
       const re = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       query.$or = [{ pair: re }, { strategy: re }, { session: re }, { reasoning: re }, { lesson: re }, { rulesFollowed: re }, { tags: re }];
@@ -52,8 +56,11 @@ export async function GET(req: NextRequest) {
     ];
     if (limit) pipeline.push({ $limit: limit });
     pipeline.push(
-      { $addFields: { hasScreenshot: { $gt: [{ $strLenBytes: { $ifNull: ["$screenshot", ""] } }, 0] } } },
-      { $project: { screenshot: 0 } },
+      { $addFields: { hasScreenshot: { $or: [
+        { $gt: [{ $strLenBytes: { $ifNull: ["$screenshot", ""] } }, 0] },
+        { $gt: [{ $strLenBytes: { $ifNull: ["$screenshotPath", ""] } }, 0] },
+      ] } } },
+      { $project: { screenshot: 0, screenshotPath: 0 } },
     );
     if (hasScreenshot === "true") {
       pipeline.push({ $project: { pair: 1, date: 1, time: 1, pnl: 1, propFirm: 1, type: 1, hasScreenshot: 1, updatedAt: 1 } });
@@ -73,7 +80,14 @@ export async function POST(req: NextRequest) {
     if (!isDateKey(body.date)) {
       return NextResponse.json({ success: false, error: "Date YYYY-MM-DD format mein honi chahiye" }, { status: 400 });
     }
-    const trade = await TradeModel.create(body);
+    await prepareTradeScreenshot(body);
+    let trade;
+    try {
+      trade = await TradeModel.create(body);
+    } catch (e) {
+      await deleteBlobs([body.screenshotPath as string]); // don't leave an orphan upload behind
+      throw e;
+    }
     return NextResponse.json({ success: true, data: trade }, { status: 201 });
   } catch (e) {
     console.error("POST /api/trades:", e);

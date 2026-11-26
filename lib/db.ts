@@ -59,7 +59,8 @@ const TradeSchema = new mongoose.Schema(
     lesson: { type: String, default: "" },
     rulesFollowed: { type: String, default: "" },
     tags: { type: [String], default: [] },
-    screenshot: { type: String, default: "" },
+    screenshot: { type: String, default: "" },     // legacy/fallback: base64 data URL kept in the DB
+    screenshotPath: { type: String, default: "" }, // Vercel Blob pathname when the image lives in Blob
     propFirm: { type: String, default: "" },
   },
   { timestamps: true }
@@ -138,7 +139,9 @@ const CertificateSchema = new mongoose.Schema(
     propFirm: { type: String, default: "" },
     fileName: { type: String, default: "" },
     mimeType: { type: String, default: "" },
-    fileData: { type: String, required: true },
+    fileData: { type: String, default: "" }, // legacy/fallback: base64 data URL kept in the DB
+    filePath: { type: String, default: "" }, // Vercel Blob pathname when the file lives in Blob
+    fileSize: { type: Number },               // bytes; set for Blob-stored files
   },
   { timestamps: true }
 );
