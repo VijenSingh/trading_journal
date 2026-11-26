@@ -14,16 +14,21 @@ export function formatBytes(bytes: number): string {
 const s = (v: unknown): string => (typeof v === "string" ? v : String(v ?? ""));
 const n = (v: unknown): number => (typeof v === "number" && isFinite(v) ? v : parseFloat(String(v ?? 0)) || 0);
 
+// All money in the app is USD. Cents are shown only when there are any
+// ($1,250 but $21.25), so futures P&L like 4.25 points × $5 isn't rounded away.
+function usd(abs: number): string {
+  const cents = Math.round(abs * 100) % 100 !== 0;
+  return abs.toLocaleString("en-US", { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 });
+}
 export function formatPnl(val: unknown): string {
   const num = n(val);
-  const abs = Math.abs(num).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-  return (num >= 0 ? "+₹" : "-₹") + abs;
+  return (num >= 0 ? "+$" : "-$") + usd(Math.abs(num));
 }
 export function formatCurrency(val: unknown): string {
-  return "₹" + Math.abs(n(val)).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  return "$" + usd(Math.abs(n(val)));
 }
 export function fmt(val: unknown, d = 2): string {
-  return n(val).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+  return n(val).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 export function getMonthLabel(ym: string) {
   const parts = s(ym).split("-");

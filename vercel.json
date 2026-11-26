@@ -4,6 +4,13 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "crons": [
-    { "path": "/api/cron/reminder", "schedule": "30 15 * * *" }
+    {
+      "path": "/api/cron/reminder",
+      "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/cron/backup",
+      "schedule": "30 18 * * 0"
+    }
   ]
 }

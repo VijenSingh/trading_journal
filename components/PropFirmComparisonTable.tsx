@@ -93,8 +93,8 @@ export default function PropFirmComparisonTable() {
                   {r.trades ? formatPnl(r.pnl) : "—"}
                 </div>
                 <div className="text-right font-mono text-ink-300">{r.avgRR ? r.avgRR.toFixed(2) : "—"}</div>
-                <div className="text-right font-mono text-ink-300">{r.investment ? `₹${r.investment.toLocaleString("en-IN")}` : "—"}</div>
-                <div className="text-right font-mono text-green/90">{r.payout ? `₹${r.payout.toLocaleString("en-IN")}` : "—"}</div>
+                <div className="text-right font-mono text-ink-300">{r.investment ? `$${r.investment.toLocaleString("en-US")}` : "—"}</div>
+                <div className="text-right font-mono text-green/90">{r.payout ? `$${r.payout.toLocaleString("en-US")}` : "—"}</div>
                 <div className={cn("text-right font-mono font-semibold", r.roi != null && r.roi >= 1 ? "text-green" : "text-ink-400")}>
                   {r.roi != null ? `${r.roi.toFixed(1)}x` : "—"}
                 </div>

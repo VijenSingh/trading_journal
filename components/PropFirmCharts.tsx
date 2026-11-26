@@ -16,7 +16,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
       {label && <div className="text-ink-300 mb-1">{label}</div>}
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color || p.payload?.fill }}>
-          {p.name}: {Number(p.value) >= 0 ? "" : "-"}₹{Math.abs(Number(p.value)).toLocaleString("en-IN")}
+          {p.name}: {Number(p.value) >= 0 ? "" : "-"}${Math.abs(Number(p.value)).toLocaleString("en-US")}
         </div>
       ))}
     </div>
@@ -45,11 +45,11 @@ export default function PropFirmCharts() {
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <StatCard label="Total Accounts" value={overall.accounts} color="blue" icon={<Landmark size={16} />} />
-        <StatCard label="Total Investment" value={`₹${overall.investment.toLocaleString("en-IN")}`} color="red" />
-        <StatCard label="Total Payout" value={`₹${overall.payout.toLocaleString("en-IN")}`} color="green" icon={<TrendingUp size={16} />} />
+        <StatCard label="Total Investment" value={`$${overall.investment.toLocaleString("en-US")}`} color="red" />
+        <StatCard label="Total Payout" value={`$${overall.payout.toLocaleString("en-US")}`} color="green" icon={<TrendingUp size={16} />} />
         <StatCard
           label="Net Return"
-          value={`${overall.net >= 0 ? "+" : "-"}₹${Math.abs(overall.net).toLocaleString("en-IN")}`}
+          value={`${overall.net >= 0 ? "+" : "-"}$${Math.abs(overall.net).toLocaleString("en-US")}`}
           color={overall.net >= 0 ? "green" : "red"}
           icon={overall.net >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
           sub={overall.investment > 0 ? `${(overall.payout / overall.investment).toFixed(1)}x ROI` : undefined}
@@ -63,7 +63,7 @@ export default function PropFirmCharts() {
             <BarChart data={barData} margin={{ top: 5, right: 5, bottom: 0, left: 10 }}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                tickFormatter={v => "₹" + (Math.abs(Number(v)) / 1000).toFixed(0) + "k"} />
+                tickFormatter={v => "$" + (Math.abs(Number(v)) / 1000).toFixed(0) + "k"} />
               <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="Investment" fill="#F43F5E" radius={[4, 4, 0, 0]} opacity={0.75} />
@@ -99,7 +99,7 @@ export default function PropFirmCharts() {
             </defs>
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-              tickFormatter={v => (Number(v) >= 0 ? "+" : "-") + "₹" + (Math.abs(Number(v)) / 1000).toFixed(0) + "k"} />
+              tickFormatter={v => (Number(v) >= 0 ? "+" : "-") + "$" + (Math.abs(Number(v)) / 1000).toFixed(0) + "k"} />
             <Tooltip content={<ChartTooltip />} />
             <Area type="monotone" dataKey="net" name="Net" stroke={overall.net >= 0 ? "#10B981" : "#F43F5E"} fill="url(#netGrad)" strokeWidth={2} dot={false} />
           </AreaChart>

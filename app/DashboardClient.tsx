@@ -5,6 +5,7 @@ import { useActiveFirm } from "@/lib/activeFirm";
 import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, toDateKey, getWeekKey, cn, downloadJson, getPatternInsights } from "@/lib/utils";
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { downloadFullBackup, restoreFullBackup } from "@/lib/backupClient";
+import CloudBackupsModal from "@/components/CloudBackupsModal";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -12,7 +13,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff, Download, Upload, Lightbulb } from "lucide-react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff, Download, Upload, Lightbulb, Cloud } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { MINDSET_STORAGE_KEY, affirmations as mindsetAffirmations } from "@/lib/mindset";
 import { isNotifySupported, isNotifyOptedIn, isNotifyGranted, enableNotifications, disableNotifications, notifyOnce } from "@/lib/notify";
@@ -48,7 +49,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="text-ink-300 mb-1">{label}</div>
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color }}>
-          {p.name}: {np(p.value) >= 0 ? "+" : ""}₹{Math.abs(np(p.value)).toLocaleString("en-IN")}
+          {p.name}: {np(p.value) >= 0 ? "+" : ""}${Math.abs(np(p.value)).toLocaleString("en-US")}
         </div>
       ))}
     </div>
@@ -70,6 +71,7 @@ export default function DashboardClient() {
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<any>(null);
+  const [showCloud, setShowCloud] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const handleBackup = async () => {
@@ -228,9 +230,9 @@ export default function DashboardClient() {
     if (!notifyOn || loading) return;
     const firm = activeFirm ? ` (${activeFirm})` : "";
     if (limitBreached) {
-      notifyOnce("weekly-loss-breach", "🚨 Weekly loss limit cross ho gayi", `Loss -₹${weekLoss.toLocaleString("en-IN")} / ₹${weeklyLossLimit.toLocaleString("en-IN")} limit${firm}. Trading rok do.`);
+      notifyOnce("weekly-loss-breach", "🚨 Weekly loss limit cross ho gayi", `Loss -$${weekLoss.toLocaleString("en-US")} / $${weeklyLossLimit.toLocaleString("en-US")} limit${firm}. Trading rok do.`);
     } else if (limitWarning) {
-      notifyOnce("weekly-loss-warning", "⚠️ Weekly loss limit ke paas", `Loss -₹${weekLoss.toLocaleString("en-IN")} / ₹${weeklyLossLimit.toLocaleString("en-IN")} limit${firm}. Savdhaan raho.`);
+      notifyOnce("weekly-loss-warning", "⚠️ Weekly loss limit ke paas", `Loss -$${weekLoss.toLocaleString("en-US")} / $${weeklyLossLimit.toLocaleString("en-US")} limit${firm}. Savdhaan raho.`);
     }
     if (todayTradeCount > 2) {
       notifyOnce("overtrade", "⚠️ Overtrading alert", `Aaj ${todayTradeCount} trades ho chuke hain${firm}. Zaroori na ho to ruk jao.`);
@@ -260,6 +262,10 @@ export default function DashboardClient() {
         <button onClick={handleBackup} disabled={backingUp} title="Sara data (trades, goals, mistakes, balance, prop firms) JSON backup"
           className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all disabled:opacity-50">
           <Download size={13} /> {backingUp ? "Backing up..." : "Backup"}
+        </button>
+        <button onClick={() => setShowCloud(true)} title="Weekly automatic cloud backups"
+          className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all">
+          <Cloud size={13} /> Cloud
         </button>
         <button onClick={() => restoreInputRef.current?.click()} title="JSON backup file se data restore karo"
           className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all">
@@ -307,6 +313,7 @@ export default function DashboardClient() {
             </div>
           </div>
         )}
+        {showCloud && <CloudBackupsModal onClose={() => setShowCloud(false)} />}
         {pendingRestore && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => !restoring && setPendingRestore(null)}>
             <div className="bg-bg-800 border border-red/30 rounded-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
@@ -334,7 +341,7 @@ export default function DashboardClient() {
           <AlertTriangle size={18} className="text-red flex-shrink-0" />
           <div className="flex-1 text-sm text-ink-200">
             <span className="font-semibold text-red">🚨 Is hafte ki max loss limit cross ho gayi{activeFirm ? ` (${activeFirm})` : ""}!</span>{" "}
-            Loss: <span className="font-mono font-semibold text-red">-₹{weekLoss.toLocaleString("en-IN")}</span> / ₹{weeklyLossLimit.toLocaleString("en-IN")} limit.
+            Loss: <span className="font-mono font-semibold text-red">-${weekLoss.toLocaleString("en-US")}</span> / ${weeklyLossLimit.toLocaleString("en-US")} limit.
             Is hafte ke liye trading rok do.
           </div>
         </div>
@@ -344,7 +351,7 @@ export default function DashboardClient() {
           <AlertTriangle size={18} className="text-amber flex-shrink-0" />
           <div className="flex-1 text-sm text-ink-200">
             <span className="font-semibold text-amber">⚠️ Weekly loss limit ke paas ho{activeFirm ? ` (${activeFirm})` : ""}.</span>{" "}
-            Loss: <span className="font-mono font-semibold text-amber">-₹{weekLoss.toLocaleString("en-IN")}</span> / ₹{weeklyLossLimit.toLocaleString("en-IN")} limit. Savdhaan raho.
+            Loss: <span className="font-mono font-semibold text-amber">-${weekLoss.toLocaleString("en-US")}</span> / ${weeklyLossLimit.toLocaleString("en-US")} limit. Savdhaan raho.
           </div>
         </div>
       )}
@@ -437,7 +444,7 @@ export default function DashboardClient() {
                 </defs>
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                  tickFormatter={v => "₹" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
+                  tickFormatter={v => "$" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="cumulative" name="P&L"
                   stroke={a.totalPnl >= 0 ? "#10B981" : "#F43F5E"}
@@ -502,7 +509,7 @@ export default function DashboardClient() {
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
                   tickFormatter={v => sp(v).slice(0, 3)} />
                 <YAxis tick={{ fontSize: 10, fill: "#8B85A0" }} axisLine={false} tickLine={false}
-                  tickFormatter={v => "₹" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
+                  tickFormatter={v => "$" + Math.abs(np(v) / 1000).toFixed(0) + "k"} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                   {monthStats.map((m, i) => (

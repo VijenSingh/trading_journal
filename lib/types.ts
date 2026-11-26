@@ -69,11 +69,15 @@ export const MISTAKES = [
   { id:8, name:"Fixed Strategy Nahi", short:"No Plan", tip:"Ek strategy, ek setup, ek plan. Random trade = guaranteed loss.", color:"purple" },
 ];
 
-export const PAIRS = [
-  "XAUUSD (Gold)","EURUSD","GBPUSD","USDJPY","GBPJPY",
-  "NASDAQ","US30","SP500","BTCUSD","ETHUSD",
-  "USOIL","EURJPY","AUDUSD","USDCAD","NZDUSD","Other",
+// Grouped for the pair dropdowns. Names are stored on trades as-is, so never rename one.
+export const PAIR_GROUPS: { label: string; pairs: string[] }[] = [
+  { label: "Futures (CME)", pairs: ["NQ", "MNQ", "ES", "MES", "YM", "MYM", "RTY", "M2K", "GC", "MGC", "CL", "MCL"] },
+  { label: "Forex / Metals", pairs: ["XAUUSD (Gold)", "EURUSD", "GBPUSD", "USDJPY", "GBPJPY", "EURJPY", "AUDUSD", "USDCAD", "NZDUSD"] },
+  { label: "Index CFDs", pairs: ["NASDAQ", "US30", "SP500"] },
+  { label: "Crypto / Commodities", pairs: ["BTCUSD", "ETHUSD", "USOIL"] },
 ];
+
+export const PAIRS = [...PAIR_GROUPS.flatMap(g => g.pairs), "Other"];
 
 export const STRATEGIES = [
   "Structure Break","Order Block","Supply & Demand","Trend Follow","Shivam William Live","Telegram","Youtube Live","Random",
@@ -92,16 +96,6 @@ export const EMOTIONS = [
   { value:"fomo",        label:"😱 FOMO",           color:"#F43F5E" },
   { value:"revengeful",  label:"😤 Revenge",        color:"#F43F5E" },
 ];
-
-// ── Pip value per standard lot for common pairs ──────────────────────
-export const PIP_VALUES: Record<string, number> = {
-  "XAUUSD (Gold)": 10,
-  "EURUSD": 10, "GBPUSD": 10, "AUDUSD": 10, "NZDUSD": 10,
-  "USDJPY": 9.1, "GBPJPY": 9.1, "EURJPY": 9.1,
-  "USDCAD": 7.7, "USDCHF": 11.2,
-  "NASDAQ": 1, "US30": 1, "SP500": 1,
-  "BTCUSD": 1, "ETHUSD": 1, "USOIL": 10,
-};
 
 export const MONTH_NAMES = [
   "January","February","March","April","May","June",

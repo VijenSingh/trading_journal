@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, Label, Button } from "@/components/ui";
-import { PAIRS, PIP_VALUES } from "@/lib/types";
+import { PAIRS, PAIR_GROUPS } from "@/lib/types";
+import { getInstrument, calcPositionSize } from "@/lib/instruments";
 import { cn } from "@/lib/utils";
 import { useActiveFirm } from "@/lib/activeFirm";
 import { useTradeData } from "@/lib/useTradeData";
@@ -63,22 +64,12 @@ export default function CalculatorPage() {
   const s = parseFloat(sl) || 0;
   const distance = Math.abs(e - s);
   const riskAmount = bal * (risk / 100);
-  const pipVal = PIP_VALUES[pair] ?? 100;
+  const spec = getInstrument(pair);
+  const lot = calcPositionSize(pair, riskAmount, distance) ?? 0;
+  const sizeLabel = spec?.kind === "future" ? "Contracts" : "Lot Size";
+  const lotText = spec?.kind === "future" ? String(lot) : lot.toFixed(2);
 
-  let lot = 0;
-  if (distance > 0 && riskAmount > 0) {
-    if (pair === "XAUUSD (Gold)") {
-      lot = riskAmount / (distance * pipVal);
-    } else if (["NASDAQ", "US30", "SP500", "BTCUSD", "ETHUSD"].includes(pair)) {
-      lot = riskAmount / distance;
-    } else {
-      const isJPY = pair.includes("JPY");
-      const pips = isJPY ? distance * 100 : distance * 10000;
-      lot = riskAmount / (pips * pipVal);
-    }
-  }
-
-  const canCalc = bal > 0 && risk > 0 && e > 0 && s > 0 && distance > 0;
+  const canCalc = !!spec && bal > 0 && risk > 0 && e > 0 && s > 0 && distance > 0;
 
   const rewardTargets = [1, 1.5, 2, 3].map(rr => ({
     rr,
@@ -95,11 +86,11 @@ export default function CalculatorPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <Label>Account Balance (₹)</Label>
+              <Label>Account Balance ($)</Label>
               {accountBalance != null && (
                 <button type="button" onClick={() => setBalance(String(Math.round(accountBalance)))}
                   className="flex items-center gap-1 text-[10px] text-blue hover:text-blue/80 transition-colors">
-                  <Wallet size={10} /> Use ₹{accountBalance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                  <Wallet size={10} /> Use ${accountBalance.toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </button>
               )}
             </div>
@@ -112,9 +103,18 @@ export default function CalculatorPage() {
           <div className="flex flex-col gap-1.5">
             <Label>Pair / Instrument</Label>
             <select className="inp" value={pair} onChange={e => setPair(e.target.value)}>
-              {PAIRS.filter(p => p !== "Other").map(p => <option key={p}>{p}</option>)}
-              {customPairs.filter(p => !PAIRS.includes(p)).map(p => <option key={p}>{p}</option>)}
+              {PAIR_GROUPS.map(g => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.pairs.map(p => <option key={p}>{p}</option>)}
+                </optgroup>
+              ))}
+              {customPairs.some(p => !PAIRS.includes(p)) && (
+                <optgroup label="Custom (size calculate nahi hoga)">
+                  {customPairs.filter(p => !PAIRS.includes(p)).map(p => <option key={p}>{p}</option>)}
+                </optgroup>
+              )}
             </select>
+            <span className="text-[10px] text-ink-500">{spec?.note ?? "Is pair ka contract size pata nahi — size calculate nahi ho sakta"}</span>
           </div>
           <div />
           <div className="flex flex-col gap-1.5">
@@ -136,21 +136,26 @@ export default function CalculatorPage() {
                 <CalcIcon size={18} className="text-green" />
               </div>
               <div>
-                <div className="text-xs text-ink-400">Suggested Lot Size</div>
-                <div className="text-3xl font-bold font-mono text-green">{lot.toFixed(2)}</div>
+                <div className="text-xs text-ink-400">Suggested {sizeLabel}</div>
+                <div className={cn("text-3xl font-bold font-mono", lot > 0 ? "text-green" : "text-red")}>{lotText}</div>
+                {lot === 0 && (
+                  <div className="text-[11px] text-red mt-1">
+                    Itne risk mein 1 {spec?.kind === "future" ? "contract" : "0.01 lot"} bhi fit nahi hota — SL chhota karo ya micro contract lo
+                  </div>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/[0.05]">
               <div>
                 <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-1">Risk Amount</div>
-                <div className="text-sm font-mono font-semibold text-red">-₹{riskAmount.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</div>
+                <div className="text-sm font-mono font-semibold text-red">-${riskAmount.toLocaleString("en-US", { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
                 <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-1">SL Distance</div>
                 <div className="text-sm font-mono font-semibold text-ink-100">{distance.toFixed(2)}</div>
               </div>
             </div>
-            <Link href={`/trade/new?pair=${encodeURIComponent(pair)}&entry=${entry}&sl=${sl}&lot=${lot.toFixed(2)}`} className="block mt-4">
+            <Link href={`/trade/new?pair=${encodeURIComponent(pair)}&entry=${entry}&sl=${sl}&lot=${lotText}`} className="block mt-4">
               <Button variant="primary" size="sm" className="w-full justify-center">
                 <Send size={13} /> Use This Setup — New Trade Mein Bhejo
               </Button>
@@ -166,7 +171,7 @@ export default function CalculatorPage() {
                   r.rr >= 2 ? "bg-green/5 border-green/20" : "bg-bg-700 border-black/[0.06]"
                 )}>
                   <div className="text-[10px] text-ink-400 mb-1">1:{r.rr}</div>
-                  <div className="text-sm font-mono font-bold text-green">+₹{r.reward.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</div>
+                  <div className="text-sm font-mono font-bold text-green">+${r.reward.toLocaleString("en-US", { maximumFractionDigits: 0 })}</div>
                   <div className="text-[10px] text-ink-500 font-mono mt-1">@ {r.target.toFixed(2)}</div>
                 </div>
               ))}
