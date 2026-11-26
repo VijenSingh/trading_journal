@@ -39,6 +39,26 @@ http://localhost:3000
 
 ---
 
+## 🧪 Tests
+
+```bash
+npm run typecheck   # TypeScript
+npm test            # unit tests (calculations, rules, CSV, validation) — no database needed
+npm run build && npm run test:e2e   # end-to-end: the built app against a throwaway in-memory MongoDB
+```
+
+- End-to-end tests start their own MongoDB in memory and set every secret explicitly. Before
+  writing anything they check the app really uses that test database and no Blob store; if a
+  value from `.env.local` ever won, the run stops untouched ("SAFETY STOP").
+- `tests/e2e/blob.test.ts` talks to a real Vercel Blob store, so it is skipped unless you run it
+  with `E2E_BLOB=1` and `BLOB_READ_WRITE_TOKEN` set. It only writes under a fresh
+  `e2e-test-<time>/` folder and deletes it at the end.
+- GitHub Actions runs type-check, unit tests, build and e2e on every push and pull request to `main`.
+- Windows: if the test MongoDB fails to start with a large exit code, install the
+  [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+
+---
+
 ## ☁️ Deploy on Vercel (FREE)
 
 ### Step 1 — Push to GitHub
