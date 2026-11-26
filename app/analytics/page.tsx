@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn, compactUsd, getRStats, getHourStats, formatR, getHoldStats, formatDuration } from "@/lib/utils";
+import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn, compactUsd, getRStats, getHourStats, formatR, getHoldStats, formatDuration, getMistakeCosts } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
@@ -81,6 +81,7 @@ export default function AnalyticsPage() {
   const rStats = getRStats(trades);
   const hourStats = getHourStats(trades);
   const hold = getHoldStats(trades);
+  const mc = getMistakeCosts(trades);
   const maxBucket = Math.max(1, ...rStats.buckets.map(b => b.count));
 
   // Radar
@@ -314,6 +315,38 @@ export default function AnalyticsPage() {
 
           <Card className="p-5 mb-6">
             <CardTitle>Mistakes Frequency Analysis</CardTitle>
+            {mc.mistakeTrades > 0 && (
+              <div className="mb-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                  <StatCard label="Mistake wale trades" value={formatPnl(mc.mistakePnl)} sub={`${mc.mistakeTrades} trades`} color={mc.mistakePnl >= 0 ? "green" : "red"} />
+                  <StatCard label="Clean trades (avg)" value={formatPnl(mc.cleanAvgPnl)} sub={`${mc.cleanTrades} trades`} color={mc.cleanAvgPnl >= 0 ? "green" : "red"} />
+                  <StatCard label="Bina mistake trades ke P&L" value={formatPnl(mc.pnlWithoutMistakeTrades)} sub={`abhi ${formatPnl(mc.totalPnl)}`} color={mc.pnlWithoutMistakeTrades >= 0 ? "green" : "red"} />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs min-w-[520px]">
+                    <thead>
+                      <tr className="text-[10px] text-ink-400 uppercase tracking-widest border-b border-black/[0.06]">
+                        <th className="text-left py-2">Mistake</th><th className="text-right">Trades</th><th className="text-right">Total P&L</th>
+                        <th className="text-right">Avg / trade</th><th className="text-right">Win %</th><th className="text-right">Avg R</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/[0.04]">
+                      {mc.costs.map(c => (
+                        <tr key={c.id}>
+                          <td className="py-2 text-ink-200">{c.name}</td>
+                          <td className="text-right font-mono">{c.trades}</td>
+                          <td className={cn("text-right font-mono font-semibold", c.pnl >= 0 ? "text-green" : "text-red")}>{formatPnl(c.pnl)}</td>
+                          <td className={cn("text-right font-mono", c.avgPnl >= 0 ? "text-green" : "text-red")}>{formatPnl(c.avgPnl)}</td>
+                          <td className="text-right font-mono">{c.winRate}%</td>
+                          <td className={cn("text-right font-mono", c.avgR == null ? "text-ink-500" : c.avgR >= 0 ? "text-green" : "text-red")}>{formatR(c.avgR)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-[10px] text-ink-500 mt-2">Ek trade mein do mistakes hon toh wo dono rows mein gina jata hai.</div>
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {MISTAKES.map(m => {
                 const count = mistakeFreq[m.id] || 0;

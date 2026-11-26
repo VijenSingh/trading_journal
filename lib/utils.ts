@@ -369,6 +369,42 @@ export function getMistakeFreq(trades: Trade[]) {
   return f;
 }
 
+// ─── What mistakes cost ──────────────────────────────────────────────────────
+// Per mistake: how many trades carried it, their P&L and average, against trades with
+// no mistake at all. A trade with two mistakes counts under both, so per-mistake
+// totals can overlap; the "without mistakes" figure counts each trade once.
+export interface MistakeCost { id: number; name: string; trades: number; pnl: number; avgPnl: number; winRate: number; avgR: number | null }
+export interface MistakeCostSummary {
+  costs: MistakeCost[];            // only mistakes that occurred, costliest first
+  cleanTrades: number;
+  cleanAvgPnl: number;
+  mistakeTrades: number;           // trades with at least one mistake
+  mistakePnl: number;              // their combined P&L (each trade once)
+  totalPnl: number;
+  pnlWithoutMistakeTrades: number; // totalPnl − mistakePnl
+}
+export function getMistakeCosts(trades: Trade[]): MistakeCostSummary {
+  const withM = trades.filter(t => (t.mistakes || []).length > 0);
+  const clean = trades.filter(t => !(t.mistakes || []).length);
+  const sum = (ts: Trade[]) => ts.reduce((a, t) => a + n(t.pnl), 0);
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const costs = MISTAKES.map(m => {
+    const ts = trades.filter(t => (t.mistakes || []).includes(m.id));
+    const rs = ts.map(rMultiple).filter((r): r is number => r != null);
+    return {
+      id: m.id, name: m.name, trades: ts.length, pnl: r2(sum(ts)),
+      avgPnl: ts.length ? r2(sum(ts) / ts.length) : 0,
+      winRate: ts.length ? Math.round((ts.filter(t => n(t.pnl) > 0).length / ts.length) * 100) : 0,
+      avgR: rs.length ? r2(rs.reduce((a, b) => a + b, 0) / rs.length) : null,
+    };
+  }).filter(c => c.trades > 0).sort((a, b) => a.pnl - b.pnl);
+  const totalPnl = r2(sum(trades)), mistakePnl = r2(sum(withM));
+  return {
+    costs, cleanTrades: clean.length, cleanAvgPnl: clean.length ? r2(sum(clean) / clean.length) : 0,
+    mistakeTrades: withM.length, mistakePnl, totalPnl, pnlWithoutMistakeTrades: r2(totalPnl - mistakePnl),
+  };
+}
+
 // ─── Pattern Insights ────────────────────────────────────────────────────────
 // Zero-cost pattern detection — no AI/LLM calls, purely correlates the structured
 // fields already tracked on every trade (mistakes, emotion, tags, strategy, session)
