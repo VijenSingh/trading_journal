@@ -3,9 +3,11 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Card, Button, Label } from "@/components/ui";
-import { PAIRS, PAIR_GROUPS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, Trade } from "@/lib/types";
+import { PAIRS, PAIR_GROUPS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, Trade, ACTIVE_STATUSES } from "@/lib/types";
+import { useAccounts } from "@/lib/accounts";
+import { tradeWouldBreak } from "@/lib/accountRules";
 import { calcPnl, getInstrument, isFuture } from "@/lib/instruments";
-import { getToday, getNow, cn, compressImage } from "@/lib/utils";
+import { getToday, getNow, cn, compressImage, formatCurrency } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { getActiveFirm } from "@/lib/activeFirm";
 import { Save, X, Zap, PenLine, CheckCircle2, ImagePlus, Trash2 } from "lucide-react";
@@ -76,6 +78,19 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const [screenshot, setScreenshot] = useState(initialTrade?.screenshot || "");
   const [compressing, setCompressing] = useState(false);
   const [todayCount, setTodayCount] = useState(0);
+  // Accounts this trade ran on (trade copier). New trades start with every active
+  // account of the firm ticked; once the user changes the ticks we leave them alone.
+  const { accounts: firmAccounts, loading: accountsLoading } = useAccounts(form.propFirm);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>(initialTrade?.accounts || []);
+  const [accountsTouched, setAccountsTouched] = useState(isEdit);
+  useEffect(() => {
+    if (accountsTouched) return;
+    setSelectedAccounts(firmAccounts.filter(a => a.propFirm === form.propFirm && ACTIVE_STATUSES.includes(a.status)).map(a => a._id));
+  }, [firmAccounts, form.propFirm, accountsTouched]);
+  const toggleAccount = (id: string) => {
+    setAccountsTouched(true);
+    setSelectedAccounts(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  };
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [preTradeRules, setPreTradeRules] = useState<{ _id: string; text: string }[]>([]);
   const [checkedRules, setCheckedRules] = useState<Set<string>>(new Set());
@@ -157,6 +172,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       return;
     }
     set("propFirm", v);
+    if (!isEdit) setAccountsTouched(false);
   };
 
   const handlePairChange = async (v: string) => {
@@ -260,6 +276,20 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       return;
     }
 
+    // Prop firm rules: would this loss break an account's floor or daily limit?
+    if (!isEdit) {
+      const pnlNum = parseFloat(form.pnl) || 0;
+      const isToday = (form.date || getToday()) === getToday();
+      const hits = firmAccounts
+        .filter(a => selectedAccounts.includes(a._id))
+        .map(a => {
+          const why = tradeWouldBreak(isToday ? a.check : { ...a.check, dailyRoom: null }, a.rules, pnlNum);
+          return why ? `• ${a.name}: ${why}` : null;
+        })
+        .filter(Boolean);
+      if (hits.length && !window.confirm(["🚨 Is trade se rule toot raha hai:", ...hits, "", "Phir bhi save karna hai?"].join("\n"))) return;
+    }
+
     if (await checkDuplicate()) {
       const proceed = window.confirm("⚠️ Same Pair/Date/Entry/Exit wala trade already journal mein hai. Kya ye phir bhi add karna hai (duplicate ho sakta hai)?");
       if (!proceed) return;
@@ -291,6 +321,10 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
         screenshot,
         propFirm: form.propFirm,
+        // Drop ticks of another firm's accounts (firm changed); if the list could not load, keep them as they are.
+        accounts: accountsLoading || !firmAccounts.length
+          ? selectedAccounts
+          : selectedAccounts.filter(id => firmAccounts.some(a => a._id === id && a.propFirm === form.propFirm)),
       };
 
       const res = await fetch(isEdit ? `/api/trades/${tradeId}` : "/api/trades", {
@@ -315,6 +349,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         setErrors({});
         setScreenshot("");
         setCheckedRules(new Set());
+        setAccountsTouched(false);
         setTimeout(() => router.push("/journal"), 800);
       }
       router.refresh();
@@ -333,6 +368,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     setPnlAutoCalc(null);
     setErrors({});
     setScreenshot("");
+    setAccountsTouched(false);
   };
 
   const toggleMistake = (id: number) => {
@@ -466,6 +502,33 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
             {errors.lot && <span className="text-[11px] text-red">{errors.lot}</span>}
           </FormGroup>
         </div>
+        {firmAccounts.some(a => a.propFirm === form.propFirm && (ACTIVE_STATUSES.includes(a.status) || selectedAccounts.includes(a._id))) && (
+          <div className="mt-4">
+            <Label>Accounts (copier) — P&L har ticked account mein judega</Label>
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              {firmAccounts
+                .filter(a => a.propFirm === form.propFirm && (ACTIVE_STATUSES.includes(a.status) || selectedAccounts.includes(a._id)))
+                .map(a => {
+                  const on = selectedAccounts.includes(a._id);
+                  return (
+                    <button key={a._id} type="button" onClick={() => toggleAccount(a._id)}
+                      className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
+                        on ? "bg-green/10 text-green border-green/30" : "bg-bg-700 text-ink-400 border-black/[0.06]")}>
+                      {on ? "✓ " : ""}{a.name} <span className="font-mono opacity-70">{formatCurrency(a.balance)}</span>
+                      {a.check.room != null && (
+                        <span className={cn("ml-1 font-mono", a.check.level === "ok" ? "opacity-70" : a.check.level === "warn" ? "text-amber" : "text-red")}>
+                          · room {formatCurrency(Math.max(0, a.check.room))}
+                        </span>
+                      )}
+                      {a.check.dailyRoom != null && (
+                        <span className="ml-1 font-mono opacity-70">· aaj {formatCurrency(Math.max(0, a.check.dailyRoom))}</span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* ── Section 2: Price Levels ── */}
@@ -534,7 +597,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <Label>
-                P&L ($ mein) <span className="text-red">*</span>
+                P&L ($ mein{selectedAccounts.length > 1 ? `, per account × ${selectedAccounts.length}` : ""}) <span className="text-red">*</span>
               </Label>
               <div className="flex items-center gap-2">
                 {pnlAutoCalc !== null && (

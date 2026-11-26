@@ -46,7 +46,7 @@ export async function downloadFullBackup(onProgress: Progress) {
   return backup;
 }
 
-const COLLECTIONS = ["trades", "propFirms", "dailyMistakes", "goals", "transactions", "accountTxns", "rules", "pairs", "certificates"] as const;
+const COLLECTIONS = ["trades", "propFirms", "dailyMistakes", "goals", "transactions", "accountTxns", "rules", "pairs", "certificates", "accounts"] as const;
 
 export async function restoreFullBackup(backup: any, onProgress: Progress) {
   const data = backup?.data;

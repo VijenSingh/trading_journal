@@ -6,6 +6,7 @@ import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, t
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { downloadFullBackup, restoreFullBackup } from "@/lib/backupClient";
 import CloudBackupsModal from "@/components/CloudBackupsModal";
+import AccountRiskCard from "@/components/AccountRiskCard";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -335,6 +336,8 @@ export default function DashboardClient() {
           </div>
         )}
       </PageHeader>
+
+      <AccountRiskCard firm={activeFirm} />
 
       {limitBreached && (
         <div className="flex items-center gap-3 p-4 mb-6 rounded-xl border border-red/30 bg-red/10">

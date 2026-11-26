@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import {
   connectDB, TradeModel, PropFirmModel, DailyMistakeModel,
-  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel,
+  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel, AccountModel,
   RestoreChunkModel, RestoreSessionModel,
 } from "@/lib/db";
 import { deleteBlobs } from "@/lib/blobFiles";
@@ -19,13 +19,15 @@ import { deleteBlobs } from "@/lib/blobFiles";
 const MODELS: Record<string, mongoose.Model<any>> = {
   trades: TradeModel, propFirms: PropFirmModel, dailyMistakes: DailyMistakeModel,
   goals: GoalModel, transactions: TransactionModel, accountTxns: AccountTxnModel,
-  rules: RuleModel, pairs: PairModel, certificates: CertificateModel,
+  rules: RuleModel, pairs: PairModel, certificates: CertificateModel, accounts: AccountModel,
 };
 
 const strip = (docs: unknown[]): Record<string, unknown>[] =>
   docs.map((d: any) => {
-    // Path fields never come from a backup: files arrive inline and are moved to Blob later.
-    const { _id, __v, _hasScreenshot, fileSize, screenshotPath, filePath, ...rest } = d || {};
+    // _id is kept: trades and fee/payout entries refer to accounts by id (the collections
+    // are emptied first, so ids cannot clash). Path fields never come from a backup:
+    // files arrive inline and are moved to Blob later.
+    const { __v, _hasScreenshot, fileSize, screenshotPath, filePath, ...rest } = d || {};
     return rest;
   });
 
