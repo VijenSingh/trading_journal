@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, AccountModel, AccountTxnModel, TradeModel, ACCOUNT_STATUSES } from "@/lib/db";
 import { isDateKey } from "@/lib/tradeFields";
+import { sanitizeRules } from "@/lib/accountRules";
 
 // PATCH  → edit name/size/notes/startDate; a status change is appended to statusHistory
 // DELETE → removes the account, its fee/payout entries, and its id from trades
@@ -20,6 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       set.size = size;
     }
     if (b.notes !== undefined) set.notes = String(b.notes);
+    if (b.rules !== undefined) {
+      const clean = sanitizeRules(b.rules);
+      if (!clean) return NextResponse.json({ success: false, error: "Rules ki values check karo" }, { status: 400 });
+      set.rules = clean;
+    }
     if (b.startDate !== undefined) {
       if (!isDateKey(b.startDate)) return NextResponse.json({ success: false, error: "Start date galat hai" }, { status: 400 });
       set.startDate = b.startDate;

@@ -1,3 +1,4 @@
+import type { AccountRules, RuleCheck } from "./accountRules";
 export interface Trade {
   _id?: string;
   date: string;
@@ -45,6 +46,7 @@ export interface PropAccount {
   status: AccountStatus;
   statusHistory: { status: AccountStatus; date: string }[];
   notes: string;
+  rules?: AccountRules;
 }
 
 // PropAccount + figures computed by /api/accounts
@@ -58,6 +60,7 @@ export interface AccountStats extends PropAccount {
   maxDrawdown: number;  // largest peak-to-trough fall of the balance, USD
   lastTradeDate: string;
   net: number;          // payouts - fees: what the account has made you so far
+  check: RuleCheck;     // prop firm rule status (lib/accountRules)
 }
 
 // URL of a trade's screenshot; updatedAt busts the (immutable) browser cache after an edit.

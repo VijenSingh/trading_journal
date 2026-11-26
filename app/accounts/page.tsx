@@ -10,6 +10,7 @@ import { invalidateTradeData } from "@/lib/useTradeData";
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { AccountStats, AccountStatus, ACCOUNT_STATUS_LABELS, ACTIVE_STATUSES } from "@/lib/types";
 import { useAccounts, invalidateAccounts } from "@/lib/accounts";
+import { RuleMeters, RulesModal, hasRules } from "@/components/AccountRules";
 
 const STATUS_BADGE: Record<AccountStatus, "blue" | "green" | "purple" | "red" | "gray"> = {
   evaluation: "blue", funded: "green", passed: "purple", failed: "red", closed: "gray",
@@ -71,6 +72,7 @@ export default function AccountsPage() {
 
 function AccountCard({ a }: { a: AccountStats }) {
   const [open, setOpen] = useState(false);
+  const [editRules, setEditRules] = useState(false);
   const [txns, setTxns] = useState<{ _id: string; type: string; amount: number; date: string; note: string }[]>([]);
   const [payout, setPayout] = useState<{ type: "payout" | "investment"; amount: string; date: string } | null>(null);
   const ddPct = a.size ? (a.maxDrawdown / a.size) * 100 : 0;
@@ -138,7 +140,7 @@ function AccountCard({ a }: { a: AccountStats }) {
   };
 
   return (
-    <Card className="p-4">
+    <Card className={cn("p-4", a.check.level === "breach" ? "border-red/40" : a.check.level === "warn" ? "border-amber/40" : "")}>
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <button onClick={rename} className="text-sm font-bold text-ink-100 hover:underline" title="Naam badlo">{a.name}</button>
@@ -161,7 +163,15 @@ function AccountCard({ a }: { a: AccountStats }) {
         <Fig label="Net" value={formatPnl(a.net)} tone={a.net >= 0 ? "green" : "red"} />
       </div>
 
+      {a.check.messages.length > 0 && (
+        <div className={cn("mt-3 text-[11px] px-3 py-2 rounded-lg", a.check.level === "breach" ? "bg-red/10 text-red" : "bg-amber/10 text-amber")}>
+          {a.check.messages.join(" · ")}
+        </div>
+      )}
+      {hasRules(a.rules) && <div className="mt-3 pt-3 border-t border-black/[0.05]"><RuleMeters a={a} /></div>}
+
       <div className="flex items-center gap-2 mt-3">
+        <Button size="sm" onClick={() => setEditRules(true)}>Rules</Button>
         <Button size="sm" onClick={() => setPayout({ type: "payout", amount: "", date: getToday() })}><Plus size={12} /> Payout</Button>
         <Button size="sm" onClick={() => setPayout({ type: "investment", amount: "", date: getToday() })}><Plus size={12} /> Fee / Reset</Button>
         <button onClick={() => setOpen(o => !o)} className="ml-auto text-xs text-ink-400 flex items-center gap-1">
@@ -202,6 +212,7 @@ function AccountCard({ a }: { a: AccountStats }) {
           {a.notes && <div className="sm:col-span-2 text-ink-300">{a.notes}</div>}
         </div>
       )}
+      {editRules && <RulesModal a={a} onClose={() => setEditRules(false)} onSaved={invalidateAccounts} />}
     </Card>
   );
 }

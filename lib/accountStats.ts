@@ -1,4 +1,5 @@
 import type { AccountStats, PropAccount } from "@/lib/types";
+import { evaluateRules, TradeEvent } from "@/lib/accountRules";
 
 interface TradeRow { date: string; time?: string; pnl: number; accounts?: string[] }
 interface TxnRow { accountId?: string; type: "investment" | "payout"; amount: number; date: string }
@@ -8,7 +9,7 @@ interface TxnRow { accountId?: string; type: "investment" | "payout"; amount: nu
 //  - maxDrawdown = largest fall from a running peak of cumulative trade P&L (payouts are
 //                  withdrawals, not losses, so they never count as drawdown)
 //  - peakBalance = highest balance reached at any point
-export function computeAccountStats(accounts: PropAccount[], trades: TradeRow[], txns: TxnRow[]): AccountStats[] {
+export function computeAccountStats(accounts: PropAccount[], trades: TradeRow[], txns: TxnRow[], today: string): AccountStats[] {
   return accounts.map(a => {
     const id = String(a._id);
     type Ev = { date: string; time: string; kind: "trade" | "payout"; amount: number };
@@ -38,6 +39,7 @@ export function computeAccountStats(accounts: PropAccount[], trades: TradeRow[],
       peakBalance = Math.max(peakBalance, a.size + cum - paid);
     }
     const r2 = (v: number) => Math.round(v * 100) / 100;
+    const tradeEvents: TradeEvent[] = events.filter(e => e.kind === "trade").map(e => ({ date: e.date, time: e.time, pnl: e.amount }));
     return {
       ...a,
       _id: id,
@@ -50,6 +52,7 @@ export function computeAccountStats(accounts: PropAccount[], trades: TradeRow[],
       maxDrawdown: r2(maxDD),
       lastTradeDate,
       net: r2(paid - fees),
+      check: evaluateRules(a.size, a.rules, tradeEvents, today),
     };
   });
 }

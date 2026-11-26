@@ -5,6 +5,8 @@ import { connectDB, AccountModel, AccountTxnModel, TradeModel, ACCOUNT_STATUSES 
 import { computeAccountStats } from "@/lib/accountStats";
 import { isDateKey } from "@/lib/tradeFields";
 import type { PropAccount } from "@/lib/types";
+import { sanitizeRules } from "@/lib/accountRules";
+import { getTodayIST } from "@/lib/utils";
 
 // GET  ?propFirm=  → accounts with balance / drawdown / fees / payouts
 // POST             → create an account (+ its challenge fee as an investment entry)
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
       TradeModel.find({ accounts: { $in: ids } }).select("date time pnl accounts").lean(),
       AccountTxnModel.find({ accountId: { $in: ids } }).select("accountId type amount date").lean(),
     ]);
-    return NextResponse.json({ success: true, data: computeAccountStats(accounts, trades as any[], txns as any[]) });
+    return NextResponse.json({ success: true, data: computeAccountStats(accounts, trades as any[], txns as any[], getTodayIST()) });
   } catch (e) {
     console.error("GET /api/accounts:", e);
     return NextResponse.json({ success: false, error: "DB error", data: [] }, { status: 500 });
@@ -40,8 +42,14 @@ export async function POST(req: NextRequest) {
     if (!isDateKey(b.startDate)) return NextResponse.json({ success: false, error: "Start date galat hai" }, { status: 400 });
     if (fee < 0) return NextResponse.json({ success: false, error: "Fee negative nahi ho sakti" }, { status: 400 });
 
+    let rules = undefined;
+    if (b.rules !== undefined) {
+      const clean = sanitizeRules(b.rules);
+      if (!clean) return NextResponse.json({ success: false, error: "Rules ki values check karo" }, { status: 400 });
+      rules = clean;
+    }
     const account = await AccountModel.create({
-      propFirm, name, size, startDate: b.startDate, status,
+      propFirm, name, size, startDate: b.startDate, status, rules,
       statusHistory: [{ status, date: b.startDate }],
       notes: String(b.notes || ""),
     });

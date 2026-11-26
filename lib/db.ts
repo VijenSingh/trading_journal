@@ -119,6 +119,15 @@ const AccountSchema = new mongoose.Schema(
       default: [],
     },
     notes: { type: String, default: "" },
+    // Prop firm rules for this account; 0 / null means "not set". See lib/accountRules.ts.
+    rules: {
+      drawdownType: { type: String, enum: ["none", "eod_trailing"], default: "none" },
+      maxDrawdown: { type: Number, default: 0, min: 0 },     // trailing distance, USD
+      lockAt: { type: Number, default: null },                // floor stops trailing at this balance
+      dailyLossLimit: { type: Number, default: 0, min: 0 },
+      profitTarget: { type: Number, default: 0, min: 0 },
+      consistencyPct: { type: Number, default: 0, min: 0, max: 100 }, // best day ≤ this % of total profit
+    },
   },
   { timestamps: true }
 );
