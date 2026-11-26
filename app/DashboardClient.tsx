@@ -5,6 +5,7 @@ import { useActiveFirm } from "@/lib/activeFirm";
 import { formatPnl, getAnalytics, getCumulative, getMonthStats, fmt, getToday, toDateKey, getWeekKey, cn, downloadJson, getPatternInsights } from "@/lib/utils";
 import { invalidatePropFirmAccounts } from "@/lib/propfirmAccounts";
 import { downloadFullBackup, restoreFullBackup } from "@/lib/backupClient";
+import CloudBackupsModal from "@/components/CloudBackupsModal";
 import { StatCard, Card, CardTitle, Badge, EmptyState } from "@/components/ui";
 import PageHeader from "@/components/layout/PageHeader";
 import Link from "next/link";
@@ -12,7 +13,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff, Download, Upload, Lightbulb } from "lucide-react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Plus, Eye, Trash2, Brain, X, Bell, BellOff, Download, Upload, Lightbulb, Cloud } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { MINDSET_STORAGE_KEY, affirmations as mindsetAffirmations } from "@/lib/mindset";
 import { isNotifySupported, isNotifyOptedIn, isNotifyGranted, enableNotifications, disableNotifications, notifyOnce } from "@/lib/notify";
@@ -70,6 +71,7 @@ export default function DashboardClient() {
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<any>(null);
+  const [showCloud, setShowCloud] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const handleBackup = async () => {
@@ -261,6 +263,10 @@ export default function DashboardClient() {
           className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all disabled:opacity-50">
           <Download size={13} /> {backingUp ? "Backing up..." : "Backup"}
         </button>
+        <button onClick={() => setShowCloud(true)} title="Weekly automatic cloud backups"
+          className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all">
+          <Cloud size={13} /> Cloud
+        </button>
         <button onClick={() => restoreInputRef.current?.click()} title="JSON backup file se data restore karo"
           className="flex items-center gap-2 px-3 py-2 bg-bg-700 text-ink-300 border border-black/[0.06] rounded-xl text-xs font-semibold hover:bg-bg-600 transition-all">
           <Upload size={13} /> Restore
@@ -307,6 +313,7 @@ export default function DashboardClient() {
             </div>
           </div>
         )}
+        {showCloud && <CloudBackupsModal onClose={() => setShowCloud(false)} />}
         {pendingRestore && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => !restoring && setPendingRestore(null)}>
             <div className="bg-bg-800 border border-red/30 rounded-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>

@@ -5,6 +5,7 @@ const PUBLIC_PATHS = new Set([
   "/login",
   "/api/auth/login",
   "/api/cron/reminder", // Vercel Cron — guarded by its own CRON_SECRET check, not the session cookie
+  "/api/cron/backup",   // Vercel Cron — refuses to run unless CRON_SECRET is set and matches
   "/manifest.json",
   "/sw.js",
   "/icon-192.png",
