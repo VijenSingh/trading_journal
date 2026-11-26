@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel } from "@/lib/db";
+import { pickTradeFields, isDateKey } from "@/lib/tradeFields";
 
 export async function GET(req: NextRequest) {
   try {
@@ -41,10 +42,23 @@ export async function GET(req: NextRequest) {
     const skip = Number.isFinite(skipParam) && skipParam > 0 ? skipParam : 0;
 
     const total = await TradeModel.countDocuments(query);
-    let q = TradeModel.find(query).sort({ date: -1, time: -1 }).skip(skip);
-    if (hasScreenshot === "true") q = q.select("pair date time pnl propFirm screenshot type");
-    if (limit) q = q.limit(limit);
-    const trades = await q.lean();
+    // Screenshots are base64 blobs (~100-200KB each) and Vercel caps a response at 4.5MB,
+    // so lists never include them: they carry a hasScreenshot flag instead and the image
+    // is loaded from /api/trades/[id]/screenshot.
+    const pipeline: Record<string, unknown>[] = [
+      { $match: query },
+      { $sort: { date: -1, time: -1 } },
+      { $skip: skip },
+    ];
+    if (limit) pipeline.push({ $limit: limit });
+    pipeline.push(
+      { $addFields: { hasScreenshot: { $gt: [{ $strLenBytes: { $ifNull: ["$screenshot", ""] } }, 0] } } },
+      { $project: { screenshot: 0 } },
+    );
+    if (hasScreenshot === "true") {
+      pipeline.push({ $project: { pair: 1, date: 1, time: 1, pnl: 1, propFirm: 1, type: 1, hasScreenshot: 1, updatedAt: 1 } });
+    }
+    const trades = await TradeModel.aggregate(pipeline as any[]);
     return NextResponse.json({ success: true, data: trades, total });
   } catch (e) {
     console.error("GET /api/trades:", e);
@@ -55,7 +69,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-    const body = await req.json();
+    const body = pickTradeFields(await req.json());
+    if (!isDateKey(body.date)) {
+      return NextResponse.json({ success: false, error: "Date YYYY-MM-DD format mein honi chahiye" }, { status: 400 });
+    }
     const trade = await TradeModel.create(body);
     return NextResponse.json({ success: true, data: trade }, { status: 201 });
   } catch (e) {

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, CertificateModel } from "@/lib/db";
+import { isAllowedUploadType } from "@/lib/dataUrl";
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,15 +27,20 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
-    if (!["evaluation", "payout"].includes(body.type) || !body.fileData) {
+    if (!["evaluation", "payout"].includes(body.type) || typeof body.fileData !== "string" || !body.fileData.startsWith("data:")) {
       return NextResponse.json({ success: false, error: "Invalid certificate" }, { status: 400 });
+    }
+    // Only images and PDFs: an uploaded HTML/SVG served from this origin could run script.
+    const mimeType = String(body.mimeType || body.fileData.slice(5, body.fileData.indexOf(";")) || "").toLowerCase();
+    if (!isAllowedUploadType(mimeType)) {
+      return NextResponse.json({ success: false, error: "Sirf image (JPG/PNG/WebP/GIF) ya PDF upload ho sakti hai" }, { status: 400 });
     }
     const cert = await CertificateModel.create({
       type: body.type,
       label: body.label || "",
       propFirm: body.propFirm || "",
       fileName: body.fileName || "",
-      mimeType: body.mimeType || "",
+      mimeType,
       fileData: body.fileData,
     });
     const { fileData, ...meta } = cert.toObject();

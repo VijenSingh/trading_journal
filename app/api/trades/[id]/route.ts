@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel } from "@/lib/db";
+import { pickTradeFields, isDateKey } from "@/lib/tradeFields";
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -27,8 +28,12 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectDB();
-    const body = await req.json();
-    const updated = await TradeModel.findByIdAndUpdate(params.id, body, { new: true });
+    const body = pickTradeFields(await req.json());
+    if ("date" in body && !isDateKey(body.date)) {
+      return NextResponse.json({ success: false, error: "Date YYYY-MM-DD format mein honi chahiye" }, { status: 400 });
+    }
+    const updated = await TradeModel.findByIdAndUpdate(params.id, { $set: body }, { new: true, runValidators: true });
+    if (!updated) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     return NextResponse.json({ success: true, data: updated });
   } catch (e) {
     console.error("PATCH /api/trades/[id]:", e);

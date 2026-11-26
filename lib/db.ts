@@ -169,6 +169,29 @@ const PushSubscriptionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ─── Restore staging (backup restore uploads in chunks, then swaps in one transaction) ─
+const RestoreChunkSchema = new mongoose.Schema(
+  {
+    restoreId: { type: String, required: true },
+    collectionName: { type: String, required: true },
+    seq: { type: Number, required: true },
+    docs: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  },
+  { timestamps: true }
+);
+RestoreChunkSchema.index({ restoreId: 1, collectionName: 1, seq: 1 }, { unique: true });
+// An abandoned restore (tab closed mid-upload) cleans itself up after a day.
+RestoreChunkSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 });
+
+const RestoreSessionSchema = new mongoose.Schema(
+  {
+    restoreId: { type: String, required: true, unique: true },
+    expected: { type: mongoose.Schema.Types.Mixed, required: true }, // { trades: 120, rules: 19, ... }
+  },
+  { timestamps: true }
+);
+RestoreSessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 });
+
 export const TradeModel =
   mongoose.models.Trade || mongoose.model("Trade", TradeSchema);
 
@@ -202,3 +225,9 @@ export const LoginAttemptModel =
 
 export const PushSubscriptionModel =
   mongoose.models.PushSubscription || mongoose.model("PushSubscription", PushSubscriptionSchema);
+
+export const RestoreChunkModel =
+  mongoose.models.RestoreChunk || mongoose.model("RestoreChunk", RestoreChunkSchema);
+
+export const RestoreSessionModel =
+  mongoose.models.RestoreSession || mongoose.model("RestoreSession", RestoreSessionSchema);

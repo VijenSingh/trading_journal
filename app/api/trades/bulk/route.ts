@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, TradeModel } from "@/lib/db";
+import { pickTradeFields, isDateKey } from "@/lib/tradeFields";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,11 @@ export async function POST(req: NextRequest) {
     if (!trades.length) {
       return NextResponse.json({ success: false, error: "Koi trade nahi mila import karne ke liye" }, { status: 400 });
     }
-    const result = await TradeModel.insertMany(trades, { ordered: false });
+    const clean = trades.map(pickTradeFields).filter((t: Record<string, unknown>) => isDateKey(t.date));
+    if (!clean.length) {
+      return NextResponse.json({ success: false, error: "Kisi bhi row ki date YYYY-MM-DD format mein nahi hai" }, { status: 400 });
+    }
+    const result = await TradeModel.insertMany(clean, { ordered: false });
     return NextResponse.json({ success: true, count: result.length }, { status: 201 });
   } catch (e: any) {
     const inserted = e?.insertedDocs?.length || e?.result?.insertedCount || 0;

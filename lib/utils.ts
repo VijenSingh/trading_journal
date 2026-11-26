@@ -92,12 +92,15 @@ export function getAnalytics(trades: Trade[]) {
   const grossWin = wins.reduce((acc, t) => acc + n(t.pnl), 0);
   const grossLoss = Math.abs(losses.reduce((acc, t) => acc + n(t.pnl), 0));
 
+  // Streaks in true trade order (date, then time). A breakeven trade is neither a win
+  // nor a loss — same as the win/loss counts above — so it neither extends nor breaks a streak.
   let mW = 0, mL = 0, cW = 0, cL = 0;
   [...trades]
-    .sort((a, b) => s(a.date).localeCompare(s(b.date)))
+    .sort((a, b) => s(a.date).localeCompare(s(b.date)) || s(a.time).localeCompare(s(b.time)))
     .forEach(t => {
-      if (n(t.pnl) > 0) { cW++; cL = 0; mW = Math.max(mW, cW); }
-      else { cL++; cW = 0; mL = Math.max(mL, cL); }
+      const p = n(t.pnl);
+      if (p > 0) { cW++; cL = 0; mW = Math.max(mW, cW); }
+      else if (p < 0) { cL++; cW = 0; mL = Math.max(mL, cL); }
     });
 
   const pairPnl: Record<string, number> = {};
@@ -350,6 +353,34 @@ function parseCsvRows(text: string): string[][] {
 
 export interface CsvImportResult { trades: Partial<Trade>[]; errors: string[] }
 
+// "₹1,234.50", "$-20", "(150)" (accounting negative), " 12 " → number; anything else → NaN.
+// Never silently 0: a cell that is not a number must be reported, not imported as zero.
+export function parseCsvNumber(raw: string): number {
+  let v = raw.trim();
+  if (!v) return NaN;
+  let neg = false;
+  if (/^\(.*\)$/.test(v)) { neg = true; v = v.slice(1, -1); }
+  v = v.replace(/[₹$€£,\s]/g, "").replace(/^(rs\.?|inr|usd)/i, "");
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(v)) return NaN;
+  const num = parseFloat(v);
+  return neg ? -num : num;
+}
+
+// Accepts YYYY-MM-DD / YYYY/MM/DD, and day-first DD-MM-YYYY / DD/MM/YYYY / DD.MM.YYYY
+// (what Excel writes on an Indian-locale machine). Returns "YYYY-MM-DD" or null if the
+// value is not a real calendar date.
+export function parseCsvDate(raw: string): string | null {
+  const v = raw.trim();
+  let y: number, m: number, d: number;
+  let mt = v.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (mt) { y = +mt[1]; m = +mt[2]; d = +mt[3]; }
+  else if ((mt = v.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/))) { d = +mt[1]; m = +mt[2]; y = +mt[3]; }
+  else return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
 export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImportResult {
   const rows = parseCsvRows(csvText.replace(/^﻿/, ""));
   if (rows.length < 2) return { trades: [], errors: ["CSV khali hai ya sirf header hai"] };
@@ -372,22 +403,39 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
   rows.slice(1).forEach((r, i) => {
     if (r.every(c => !c.trim())) return;
     const get = (ix: number) => (ix >= 0 ? (r[ix] || "").trim() : "");
-    const date = get(col.date), pair = get(col.pair), pnlRaw = get(col.pnl);
-    if (!date || !pair || pnlRaw === "") {
+    const dateRaw = get(col.date), pair = get(col.pair), pnlRaw = get(col.pnl);
+    if (!dateRaw || !pair || pnlRaw === "") {
       errors.push(`Row ${i + 2}: Date/Pair/P&L missing hai — skip kiya`);
       return;
     }
+    const date = parseCsvDate(dateRaw);
+    if (!date) {
+      errors.push(`Row ${i + 2}: Date "${dateRaw}" samajh nahi aayi (YYYY-MM-DD ya DD-MM-YYYY chahiye) — skip kiya`);
+      return;
+    }
+    const pnl = parseCsvNumber(pnlRaw);
+    if (isNaN(pnl)) {
+      errors.push(`Row ${i + 2}: P&L "${pnlRaw}" number nahi hai — skip kiya`);
+      return;
+    }
+    // Optional numeric columns: blank → 0, but a non-number is an error, not a silent 0.
+    const optNum = (ix: number, label: string): number | null => {
+      const raw = get(ix);
+      if (!raw) return 0;
+      const v = parseCsvNumber(raw);
+      if (isNaN(v)) { errors.push(`Row ${i + 2}: ${label} "${raw}" number nahi hai — skip kiya`); return null; }
+      return v;
+    };
+    const lot = optNum(col.lot, "Lot"), entry = optNum(col.entry, "Entry"), sl = optNum(col.sl, "SL"),
+      target = optNum(col.target, "Target"), exit = optNum(col.exit, "Exit"),
+      pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR");
+    if ([lot, entry, sl, target, exit, pips, rr].some(v => v === null)) return;
     trades.push({
       date, time: get(col.time), pair,
       type: get(col.type).toUpperCase() === "SELL" ? "SELL" : "BUY",
-      lot: parseFloat(get(col.lot)) || 0,
-      entry: parseFloat(get(col.entry)) || 0,
-      sl: parseFloat(get(col.sl)) || 0,
-      target: parseFloat(get(col.target)) || 0,
-      exit: parseFloat(get(col.exit)) || 0,
-      pnl: parseFloat(pnlRaw) || 0,
-      pips: parseFloat(get(col.pips)) || 0,
-      rr: parseFloat(get(col.rr)) || 0,
+      lot: lot!, entry: entry!, sl: sl!, target: target!, exit: exit!,
+      pnl,
+      pips: pips!, rr: rr!,
       strategy: get(col.strategy),
       session: get(col.session),
       emotion: get(col.emotion),

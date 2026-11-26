@@ -1,16 +1,24 @@
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   connectDB, TradeModel, PropFirmModel, DailyMistakeModel,
   GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel,
 } from "@/lib/db";
 
+// Backup, step 1: every collection, but without the big base64 blobs (trade screenshots,
+// certificate files) — all of them together easily pass Vercel's 4.5MB response cap.
+// Trades that have a screenshot are flagged; the browser then fetches each blob from
+// /api/backup/item and assembles the same full version-1 file as before.
+// Restore lives at /api/backup/restore.
 export async function GET() {
   try {
     await connectDB();
     const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates] = await Promise.all([
-      TradeModel.find({}).lean(),
+      TradeModel.aggregate([
+        { $addFields: { _hasScreenshot: { $gt: [{ $strLenBytes: { $ifNull: ["$screenshot", ""] } }, 0] } } },
+        { $project: { screenshot: 0 } },
+      ]),
       PropFirmModel.find({}).lean(),
       DailyMistakeModel.find({}).lean(),
       GoalModel.find({}).lean(),
@@ -18,59 +26,17 @@ export async function GET() {
       AccountTxnModel.find({}).lean(),
       RuleModel.find({}).lean(),
       PairModel.find({}).lean(),
-      CertificateModel.find({}).lean(),
+      CertificateModel.find({}).select("-fileData").lean(),
     ]);
     return NextResponse.json({
       success: true,
       version: 1,
+      partial: true, // blobs still to be fetched from /api/backup/item
       exportedAt: new Date().toISOString(),
       data: { trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates },
     });
   } catch (e) {
     console.error("GET /api/backup:", e);
     return NextResponse.json({ success: false, error: "Backup failed" }, { status: 500 });
-  }
-}
-
-// Full restore: replaces every collection with the contents of the uploaded backup.
-export async function POST(req: NextRequest) {
-  try {
-    await connectDB();
-    const body = await req.json();
-    const data = body?.data;
-    if (body?.version !== 1 || !data || !Array.isArray(data.trades)) {
-      return NextResponse.json({ success: false, error: "Invalid ya purani backup file" }, { status: 400 });
-    }
-
-    const strip = (docs: unknown): Record<string, unknown>[] =>
-      Array.isArray(docs) ? docs.map(({ _id, __v, ...rest }: any) => rest) : [];
-
-    await Promise.all([
-      TradeModel.deleteMany({}),
-      PropFirmModel.deleteMany({}),
-      DailyMistakeModel.deleteMany({}),
-      GoalModel.deleteMany({}),
-      TransactionModel.deleteMany({}),
-      AccountTxnModel.deleteMany({}),
-      RuleModel.deleteMany({}),
-      PairModel.deleteMany({}),
-      CertificateModel.deleteMany({}),
-    ]);
-
-    const counts = { trades: 0, propFirms: 0, dailyMistakes: 0, goals: 0, transactions: 0, accountTxns: 0, rules: 0, pairs: 0, certificates: 0 };
-    if (data.trades?.length) counts.trades = (await TradeModel.insertMany(strip(data.trades), { ordered: false })).length;
-    if (data.propFirms?.length) counts.propFirms = (await PropFirmModel.insertMany(strip(data.propFirms), { ordered: false })).length;
-    if (data.dailyMistakes?.length) counts.dailyMistakes = (await DailyMistakeModel.insertMany(strip(data.dailyMistakes), { ordered: false })).length;
-    if (data.goals?.length) counts.goals = (await GoalModel.insertMany(strip(data.goals), { ordered: false })).length;
-    if (data.transactions?.length) counts.transactions = (await TransactionModel.insertMany(strip(data.transactions), { ordered: false })).length;
-    if (data.accountTxns?.length) counts.accountTxns = (await AccountTxnModel.insertMany(strip(data.accountTxns), { ordered: false })).length;
-    if (data.rules?.length) counts.rules = (await RuleModel.insertMany(strip(data.rules), { ordered: false })).length;
-    if (data.pairs?.length) counts.pairs = (await PairModel.insertMany(strip(data.pairs), { ordered: false })).length;
-    if (data.certificates?.length) counts.certificates = (await CertificateModel.insertMany(strip(data.certificates), { ordered: false })).length;
-
-    return NextResponse.json({ success: true, counts });
-  } catch (e) {
-    console.error("POST /api/backup:", e);
-    return NextResponse.json({ success: false, error: "Restore failed" }, { status: 500 });
   }
 }

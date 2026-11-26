@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Trade, MISTAKES } from "@/lib/types";
+import { Trade, MISTAKES, screenshotUrl } from "@/lib/types";
 import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday, csvToTrades, computeJournalStreak } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
@@ -351,10 +351,10 @@ export default function JournalPage() {
                     </div>
 
                     {/* Screenshot */}
-                    {t.screenshot && (
+                    {t.hasScreenshot && (
                       <div>
                         <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-2">Chart Screenshot</div>
-                        <img src={t.screenshot} alt="Trade screenshot" onClick={() => window.open(t.screenshot, "_blank")}
+                        <img src={screenshotUrl(t)} alt="Trade screenshot" loading="lazy" onClick={() => window.open(screenshotUrl(t), "_blank")}
                           className="max-h-48 rounded-xl border border-black/[0.06] cursor-zoom-in hover:opacity-90 transition-opacity" />
                       </div>
                     )}

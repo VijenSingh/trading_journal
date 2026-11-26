@@ -21,9 +21,16 @@ export interface Trade {
   lesson: string;
   rulesFollowed: string;
   tags: string[];
-  screenshot?: string;
+  screenshot?: string;     // only present on single-trade responses; lists send hasScreenshot instead
+  hasScreenshot?: boolean;
   propFirm?: string;
   createdAt?: string;
+  updatedAt?: string;
+}
+
+// URL of a trade's screenshot; updatedAt busts the (immutable) browser cache after an edit.
+export function screenshotUrl(t: { _id?: string; updatedAt?: string }): string {
+  return `/api/trades/${t._id}/screenshot?v=${encodeURIComponent(t.updatedAt || "")}`;
 }
 
 export interface Certificate {

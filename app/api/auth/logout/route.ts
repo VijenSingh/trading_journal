@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { COOKIE_NAME } from "@/lib/authToken";
 
 export async function POST() {
   const res = NextResponse.json({ success: true });
-  res.cookies.set("tm_auth", "", { httpOnly: true, path: "/", maxAge: 0 });
+  res.cookies.set(COOKIE_NAME, "", { httpOnly: true, path: "/", maxAge: 0 });
   return res;
 }

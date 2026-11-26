@@ -24,7 +24,11 @@ Advanced trading journal built with **Next.js 14 + MongoDB Atlas** for serious p
 npm install
 
 # 2. Create .env.local
-MONGODB_URI=mongodb+srv://vijjudata:vijju5592@cluster0.vqv6fct.mongodb.net/tradermind?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/tradermind?retryWrites=true&w=majority
+# Optional locally (leave both unset to skip login); REQUIRED in production —
+# without them the deployed app refuses every request instead of running open.
+AUTH_PASSWORD=<login password>
+AUTH_SECRET=<long random string>
 
 # 3. Run dev server
 npm run dev
@@ -52,8 +56,11 @@ git push -u origin main
 2. Click **"New Project"** → Import your GitHub repo
 3. In **Environment Variables**, add:
    ```
-   MONGODB_URI = mongodb+srv://vijjudata:vijju5592@cluster0.vqv6fct.mongodb.net/tradermind?retryWrites=true&w=majority&appName=Cluster0
+   MONGODB_URI   = <your Atlas connection string>
+   AUTH_PASSWORD = <login password>
+   AUTH_SECRET   = <long random string>
    ```
+   Never commit real values — keep them only in `.env.local` and Vercel's Environment Variables.
 4. Click **Deploy** → Done! 🎉
 
 Your live URL will be: `https://tradermind.vercel.app` (or similar)
