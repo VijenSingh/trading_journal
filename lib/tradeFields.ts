@@ -1,7 +1,7 @@
 // Fields a client may set on a trade. Everything else in a request body (_id,
 // createdAt, unknown keys, operators) is dropped before it reaches MongoDB.
 const TRADE_FIELDS = [
-  "date", "time", "pair", "type", "lot", "entry", "sl", "target", "exit",
+  "date", "time", "exitTime", "pair", "type", "lot", "entry", "sl", "target", "exit",
   "pnl", "riskAmount", "pips", "rr", "strategy", "session", "mistakes", "noMistakesFlag",
   "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm", "accounts",
 ] as const;
@@ -12,6 +12,11 @@ export function pickTradeFields(body: unknown): Record<string, unknown> {
   const src = body as Record<string, unknown>;
   for (const k of TRADE_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
+  }
+  // exitTime: "HH:MM" or empty
+  if ("exitTime" in out) {
+    const v = typeof out.exitTime === "string" ? out.exitTime.trim() : "";
+    out.exitTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : "";
   }
   // accounts: unique account ids only
   if ("accounts" in out) {

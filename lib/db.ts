@@ -39,7 +39,8 @@ export async function connectDB() {
 const TradeSchema = new mongoose.Schema(
   {
     date: { type: String, required: true },
-    time: { type: String, default: "" },
+    time: { type: String, default: "" },      // entry time HH:MM
+    exitTime: { type: String, default: "" },  // exit time HH:MM; "" = not recorded
     pair: { type: String, required: true },
     type: { type: String, enum: ["BUY", "SELL"], required: true },
     lot: { type: Number, default: 0 },

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Trade, MISTAKES } from "@/lib/types";
-import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn, compactUsd, getRStats, getHourStats, formatR } from "@/lib/utils";
+import { getAnalytics, getCumulative, getMistakeFreq, getDayOfWeekStats, getMonthTableStats, fmt, formatPnl, formatCurrency, cn, compactUsd, getRStats, getHourStats, formatR, getHoldStats, formatDuration } from "@/lib/utils";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardTitle, StatCard, EmptyState, Loading } from "@/components/ui";
 import { useTradeData } from "@/lib/useTradeData";
@@ -80,6 +80,7 @@ export default function AnalyticsPage() {
   const monthTableStats = getMonthTableStats(trades);
   const rStats = getRStats(trades);
   const hourStats = getHourStats(trades);
+  const hold = getHoldStats(trades);
   const maxBucket = Math.max(1, ...rStats.buckets.map(b => b.count));
 
   // Radar
@@ -262,6 +263,47 @@ export default function AnalyticsPage() {
               </div>
             </Card>
           )}
+
+          <Card className="p-5 mb-6">
+            <CardTitle>Holding Time</CardTitle>
+            {hold.count === 0 ? (
+              <EmptyState icon="⏱" title="Abhi holding time data nahi" sub="Trade mein Exit Time daalo — kitni der trade hold kiya, uska analysis yahan aayega" />
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <StatCard label="Avg Hold" value={formatDuration(hold.avgAll)} sub={`${hold.count} trades (${hold.coverage}%)`} />
+                  <StatCard label="Winners" value={formatDuration(hold.avgWin)} color="green" />
+                  <StatCard label="Losers" value={formatDuration(hold.avgLoss)} color="red" />
+                </div>
+                {hold.avgWin != null && hold.avgLoss != null && hold.avgLoss > hold.avgWin * 1.5 && (
+                  <div className="text-xs text-amber mb-3 p-2.5 rounded-lg bg-amber/10">
+                    ⚠️ Losers ko winners se {(hold.avgLoss / Math.max(1, hold.avgWin)).toFixed(1)}× zyada der hold kar rahe ho — loss chalne dete ho, profit jaldi kaat lete ho?
+                  </div>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs min-w-[480px]">
+                    <thead>
+                      <tr className="text-[10px] text-ink-400 uppercase tracking-widest border-b border-black/[0.06]">
+                        <th className="text-left py-2">Hold</th><th className="text-right">Trades</th><th className="text-right">P&L</th>
+                        <th className="text-right">Win %</th><th className="text-right">Avg R</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/[0.04]">
+                      {hold.buckets.map(b => (
+                        <tr key={b.label}>
+                          <td className="py-2 text-ink-200">{b.label}</td>
+                          <td className="text-right font-mono">{b.trades}</td>
+                          <td className={cn("text-right font-mono font-semibold", b.pnl >= 0 ? "text-green" : "text-red")}>{formatPnl(b.pnl)}</td>
+                          <td className="text-right font-mono">{b.winRate}%</td>
+                          <td className={cn("text-right font-mono", b.avgR == null ? "text-ink-500" : b.avgR >= 0 ? "text-green" : "text-red")}>{formatR(b.avgR)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </Card>
 
           <Card className="p-5 mb-6">
             <CardTitle>Month Performance</CardTitle>

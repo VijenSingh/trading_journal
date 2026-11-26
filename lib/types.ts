@@ -2,7 +2,8 @@ import type { AccountRules, RuleCheck } from "./accountRules";
 export interface Trade {
   _id?: string;
   date: string;
-  time: string;
+  time: string;        // entry time HH:MM
+  exitTime?: string;   // exit time HH:MM, optional
   pair: string;
   type: "BUY" | "SELL";
   lot: number;

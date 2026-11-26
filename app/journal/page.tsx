@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Trade, MISTAKES, screenshotUrl } from "@/lib/types";
-import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday, csvToTrades, computeJournalStreak, rMultiple, formatR } from "@/lib/utils";
+import { formatPnl, getMonthLabel, cn, tradesToCsv, downloadCsv, getToday, csvToTrades, computeJournalStreak, rMultiple, formatR, holdMinutes, formatDuration } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { useActiveFirm } from "@/lib/activeFirm";
 import PageHeader from "@/components/layout/PageHeader";
@@ -331,6 +331,9 @@ export default function JournalPage() {
                       <span className={cn("font-mono font-bold text-sm", (t.pnl||0)>=0?"text-green":"text-red")}>
                         {formatPnl(t.pnl||0)}
                       </span>
+                      {holdMinutes(t) != null && (
+                        <span className="font-mono text-[11px] text-ink-400" title="Holding time">⏱ {formatDuration(holdMinutes(t))}</span>
+                      )}
                       {rMultiple(t) != null && (
                         <span className={cn("font-mono text-xs", (rMultiple(t) ?? 0) >= 0 ? "text-green/80" : "text-red/80")}>{formatR(rMultiple(t))}</span>
                       )}

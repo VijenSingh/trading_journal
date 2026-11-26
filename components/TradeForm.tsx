@@ -7,13 +7,13 @@ import { PAIRS, PAIR_GROUPS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, Trade, AC
 import { useAccounts } from "@/lib/accounts";
 import { tradeWouldBreak } from "@/lib/accountRules";
 import { calcPnl, calcRisk, getInstrument, isFuture } from "@/lib/instruments";
-import { getToday, getNow, cn, compressImage, formatCurrency, formatR } from "@/lib/utils";
+import { getToday, getNow, cn, compressImage, formatCurrency, formatR, holdMinutes, formatDuration } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { getActiveFirm } from "@/lib/activeFirm";
 import { Save, X, Zap, PenLine, CheckCircle2, ImagePlus, Trash2 } from "lucide-react";
 
 const defaultForm = {
-  date: "", time: "", pair: "", customPair: "", type: "BUY" as "BUY" | "SELL",
+  date: "", time: "", exitTime: "", pair: "", customPair: "", type: "BUY" as "BUY" | "SELL",
   lot: "", entry: "", sl: "", target: "", exit: "", pnl: "", riskAmount: "",
   pips: "", rr: "", strategy: "", session: "", emotion: "", propFirm: "",
   reasoning: "", lesson: "", rulesFollowed: "", tags: "",
@@ -36,7 +36,7 @@ const getPairName = (f: { pair: string; customPair: string }) => (f.pair === "Ot
 function tradeToForm(t: Trade) {
   const knownPair = PAIRS.includes(t.pair);
   return {
-    date: t.date || "", time: t.time || "",
+    date: t.date || "", time: t.time || "", exitTime: t.exitTime || "",
     pair: knownPair ? t.pair : "Other", customPair: knownPair ? "" : t.pair,
     type: t.type || "BUY",
     lot: t.lot ? String(t.lot) : "", entry: t.entry ? String(t.entry) : "",
@@ -314,6 +314,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
       const body = {
         date: form.date || getToday(),
         time: form.time || getNow(),
+        exitTime: form.exitTime,
         pair: getPair(),
         type: form.type,
         lot: parseFloat(form.lot) || 0,
@@ -451,8 +452,14 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
           <FormGroup label="Date">
             <input type="date" className="inp" value={form.date} onChange={e => set("date", e.target.value)} />
           </FormGroup>
-          <FormGroup label="Time">
+          <FormGroup label="Entry Time">
             <input type="time" className="inp" value={form.time} onChange={e => set("time", e.target.value)} />
+          </FormGroup>
+          <FormGroup label="Exit Time (optional)">
+            <input type="time" className="inp" value={form.exitTime} onChange={e => set("exitTime", e.target.value)} />
+            {form.exitTime && form.time && (
+              <span className="text-[10px] text-ink-500">Hold: {formatDuration(holdMinutes({ time: form.time, exitTime: form.exitTime } as Trade))}</span>
+            )}
           </FormGroup>
           <FormGroup label="Session" required>
             <select className={inp(!!errors.session)} value={form.session} onChange={e => set("session", e.target.value)}>
