@@ -5,7 +5,8 @@ import { isDateKey } from "@/lib/tradeFields";
 // GET  → this account's fee + payout entries
 // POST → add a payout (or an extra fee, e.g. a reset) to this account. They also count
 //        in the firm-level investment/payout totals, since they are AccountTxn entries.
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const txns = await AccountTxnModel.find({ accountId: params.id }).sort({ date: -1, createdAt: -1 }).lean();
@@ -16,7 +17,8 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params;
   try {
     await connectDB();
     const account = await AccountModel.findById(params.id).select("propFirm name").lean<{ propFirm: string; name: string }>();

@@ -4,7 +4,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { blobConfigured, createCloudBackup, migrateInlineFiles } from "@/lib/backupServer";
 
-// Weekly Vercel Cron (see vercel.json). Public in middleware, so it is guarded here:
+// Weekly Vercel Cron (see vercel.json). Public in proxy.ts, so it is guarded here:
 // Vercel sends "Authorization: Bearer <CRON_SECRET>". Without CRON_SECRET set this
 // refuses to run, so nobody else can trigger backups.
 export async function GET(req: NextRequest) {

@@ -1,5 +1,5 @@
-// Shared by middleware (Edge runtime) and the login route (Node runtime) — both have
-// Web Crypto on globalThis, so this module must not import anything Node-only.
+// Shared by proxy.ts and the login route (both Node runtime); uses only Web Crypto on globalThis,
+// so it stays free of Node-only imports.
 
 export const COOKIE_NAME = "tm_auth";
 
