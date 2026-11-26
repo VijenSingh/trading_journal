@@ -48,7 +48,9 @@ const TradeSchema = new mongoose.Schema(
     sl: { type: Number, default: 0 },
     target: { type: Number, default: 0 },
     exit: { type: Number, default: 0 },
-    pnl: { type: Number, required: true },
+    pnl: { type: Number, required: true },         // NET P&L per account (after fees) — what every stat uses
+    grossPnl: { type: Number, default: null },     // before fees; null on trades saved before fees existed
+    fees: { type: Number, default: 0, min: 0 },    // commission etc. per account
     riskAmount: { type: Number, default: 0, min: 0 }, // $ lost if SL hit, per account; 0 = not known
     pips: { type: Number, default: 0 },
     rr: { type: Number, default: 0 },
@@ -121,6 +123,7 @@ const AccountSchema = new mongoose.Schema(
       default: [],
     },
     notes: { type: String, default: "" },
+    commissionPerContract: { type: Number, default: 0, min: 0 }, // round-trip, USD
     // Prop firm rules for this account; 0 / null means "not set". See lib/accountRules.ts.
     rules: {
       drawdownType: { type: String, enum: ["none", "eod_trailing"], default: "none" },

@@ -476,13 +476,13 @@ function csvCell(v: unknown): string {
 }
 const CSV_HEADERS = [
   "Date", "Time", "Exit Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
-  "P&L", "Risk", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
+  "P&L", "Fees", "Risk", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
   "Reasoning", "Lesson", "Rules Followed",
 ];
 export function tradesToCsv(trades: Trade[]): string {
   const rows = trades.map(t => [
     t.date, t.time, t.exitTime || "", t.pair, t.type, t.lot, t.entry, t.sl, t.target, t.exit,
-    t.pnl, t.riskAmount || "", t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
+    t.pnl, t.fees || "", t.riskAmount || "", t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
     (t.mistakes || []).join("; "), (t.tags || []).join("; "),
     t.reasoning, t.lesson, t.rulesFollowed,
   ].map(csvCell).join(","));
@@ -551,7 +551,7 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
   const col = {
     date: idx("date"), time: idx("time"), exitTime: idx("exit time"), pair: idx("pair"), type: idx("type"),
     lot: idx("lot"), entry: idx("entry"), sl: idx("sl"), target: idx("target"), exit: idx("exit"),
-    pnl: idx("p&l"), risk: idx("risk"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
+    pnl: idx("p&l"), fees: idx("fees"), risk: idx("risk"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
     emotion: idx("emotion"), propFirm: idx("prop firm"), mistakes: idx("mistakes"), tags: idx("tags"),
     reasoning: idx("reasoning"), lesson: idx("lesson"), rulesFollowed: idx("rules followed"),
   };
@@ -589,14 +589,15 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
     };
     const lot = optNum(col.lot, "Lot"), entry = optNum(col.entry, "Entry"), sl = optNum(col.sl, "SL"),
       target = optNum(col.target, "Target"), exit = optNum(col.exit, "Exit"),
-      pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR"), risk = optNum(col.risk, "Risk");
-    if ([lot, entry, sl, target, exit, pips, rr, risk].some(v => v === null)) return;
+      pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR"), risk = optNum(col.risk, "Risk"), fees = optNum(col.fees, "Fees");
+    if ([lot, entry, sl, target, exit, pips, rr, risk, fees].some(v => v === null)) return;
     trades.push({
       date, time: normalizeTime(get(col.time)), exitTime: normalizeTime(get(col.exitTime)), pair,
       type: get(col.type).toUpperCase() === "SELL" ? "SELL" : "BUY",
       lot: lot!, entry: entry!, sl: sl!, target: target!, exit: exit!,
       pnl,
       riskAmount: Math.abs(risk!),
+      fees: Math.abs(fees!), // P&L column is taken as net
       pips: pips!, rr: rr!,
       strategy: get(col.strategy),
       session: get(col.session),

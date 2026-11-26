@@ -22,6 +22,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       set.size = size;
     }
     if (b.notes !== undefined) set.notes = String(b.notes);
+    if (b.commissionPerContract !== undefined) {
+      const c = b.commissionPerContract === "" ? 0 : Number(b.commissionPerContract);
+      if (!Number.isFinite(c) || c < 0) return NextResponse.json({ success: false, error: "Commission galat hai" }, { status: 400 });
+      set.commissionPerContract = c;
+    }
     if (b.rules !== undefined) {
       const clean = sanitizeRules(b.rules);
       if (!clean) return NextResponse.json({ success: false, error: "Rules ki values check karo" }, { status: 400 });

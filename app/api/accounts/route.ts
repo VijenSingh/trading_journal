@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     if (!(size > 0)) return NextResponse.json({ success: false, error: "Account size enter karo" }, { status: 400 });
     if (!isDateKey(b.startDate)) return NextResponse.json({ success: false, error: "Start date galat hai" }, { status: 400 });
     if (fee < 0) return NextResponse.json({ success: false, error: "Fee negative nahi ho sakti" }, { status: 400 });
+    const commission = b.commissionPerContract === undefined || b.commissionPerContract === "" ? 0 : Number(b.commissionPerContract);
+    if (!Number.isFinite(commission) || commission < 0) return NextResponse.json({ success: false, error: "Commission galat hai" }, { status: 400 });
 
     let rules = undefined;
     if (b.rules !== undefined) {
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
       rules = clean;
     }
     const account = await AccountModel.create({
-      propFirm, name, size, startDate: b.startDate, status, rules,
+      propFirm, name, size, startDate: b.startDate, status, rules, commissionPerContract: commission,
       statusHistory: [{ status, date: b.startDate }],
       notes: String(b.notes || ""),
     });

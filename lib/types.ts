@@ -11,7 +11,9 @@ export interface Trade {
   sl: number;
   target: number;
   exit: number;
-  pnl: number;
+  pnl: number;          // net (after fees), per account
+  grossPnl?: number | null; // before fees; absent on older trades
+  fees?: number;        // commission etc. per account
   riskAmount?: number; // $ at risk if SL is hit (per account); R = pnl / riskAmount
   pips: number;
   rr: number;
@@ -48,6 +50,7 @@ export interface PropAccount {
   status: AccountStatus;
   statusHistory: { status: AccountStatus; date: string }[];
   notes: string;
+  commissionPerContract?: number; // round-trip USD per contract
   rules?: AccountRules;
 }
 

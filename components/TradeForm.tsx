@@ -7,14 +7,14 @@ import { PAIRS, PAIR_GROUPS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, Trade, AC
 import { useAccounts } from "@/lib/accounts";
 import { tradeWouldBreak } from "@/lib/accountRules";
 import { calcPnl, calcRisk, getInstrument, isFuture } from "@/lib/instruments";
-import { getToday, getNow, cn, compressImage, formatCurrency, formatR, holdMinutes, formatDuration } from "@/lib/utils";
+import { getToday, getNow, cn, compressImage, formatCurrency, formatR, holdMinutes, formatDuration, formatPnl } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { getActiveFirm } from "@/lib/activeFirm";
 import { Save, X, Zap, PenLine, CheckCircle2, ImagePlus, Trash2 } from "lucide-react";
 
 const defaultForm = {
   date: "", time: "", exitTime: "", pair: "", customPair: "", type: "BUY" as "BUY" | "SELL",
-  lot: "", entry: "", sl: "", target: "", exit: "", pnl: "", riskAmount: "",
+  lot: "", entry: "", sl: "", target: "", exit: "", pnl: "", fees: "", riskAmount: "",
   pips: "", rr: "", strategy: "", session: "", emotion: "", propFirm: "",
   reasoning: "", lesson: "", rulesFollowed: "", tags: "",
 };
@@ -41,7 +41,10 @@ function tradeToForm(t: Trade) {
     type: t.type || "BUY",
     lot: t.lot ? String(t.lot) : "", entry: t.entry ? String(t.entry) : "",
     sl: t.sl ? String(t.sl) : "", target: t.target ? String(t.target) : "",
-    exit: t.exit ? String(t.exit) : "", pnl: t.pnl != null ? String(t.pnl) : "",
+    // the form edits GROSS P&L + fees; older trades (no grossPnl) were saved gross-equals-net
+    exit: t.exit ? String(t.exit) : "",
+    pnl: t.grossPnl != null ? String(t.grossPnl) : t.pnl != null ? String(t.pnl) : "",
+    fees: t.fees ? String(t.fees) : "",
     riskAmount: t.riskAmount ? String(t.riskAmount) : "",
     pips: t.pips ? String(t.pips) : "", rr: t.rr ? String(t.rr) : "",
     strategy: t.strategy || "", session: t.session || "", emotion: t.emotion || "", propFirm: t.propFirm || "",
@@ -218,6 +221,20 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.entry, form.exit, form.lot, form.pair, form.customPair, form.type, pnlManualOverride]);
 
+  // ── Fees: contracts × the commission of the ticked account(s), until edited by hand ──
+  const [feesManual, setFeesManual] = useState(!!initialTrade?.fees);
+  const commissionRate = firmAccounts
+    .filter(a => selectedAccounts.includes(a._id))
+    .reduce((m, a) => Math.max(m, Number(a.commissionPerContract) || 0), 0);
+  const autoFees = commissionRate > 0 && parseFloat(form.lot) > 0 ? Math.round(commissionRate * parseFloat(form.lot) * 100) / 100 : null;
+  useEffect(() => {
+    if (feesManual) return;
+    setForm(f => ({ ...f, fees: autoFees != null ? String(autoFees) : "" }));
+  }, [autoFees, feesManual]);
+  const grossNum = parseFloat(form.pnl) || 0;
+  const feesNum = Math.abs(parseFloat(form.fees)) || 0;
+  const netPnl = Math.round((grossNum - feesNum) * 100) / 100;
+
   // ── Auto-calc risk ($ lost if SL is hit) ──
   const autoRisk = calcRisk(getPairName(form), parseFloat(form.entry), parseFloat(form.sl), parseFloat(form.lot));
   useEffect(() => {
@@ -225,7 +242,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     setForm(f => ({ ...f, riskAmount: autoRisk != null ? String(autoRisk) : "" }));
   }, [autoRisk, riskManual]);
   const riskNum = parseFloat(form.riskAmount);
-  const liveR = riskNum > 0 && form.pnl !== "" ? (parseFloat(form.pnl) || 0) / riskNum : null;
+  const liveR = riskNum > 0 && form.pnl !== "" ? netPnl / riskNum : null;
 
   // ── Auto-calc RR ──
   useEffect(() => {
@@ -292,7 +309,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
 
     // Prop firm rules: would this loss break an account's floor or daily limit?
     if (!isEdit) {
-      const pnlNum = parseFloat(form.pnl) || 0;
+      const pnlNum = netPnl;
       const isToday = (form.date || getToday()) === getToday();
       const hits = firmAccounts
         .filter(a => selectedAccounts.includes(a._id))
@@ -322,7 +339,9 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         sl: parseFloat(form.sl) || 0,
         target: parseFloat(form.target) || 0,
         exit: parseFloat(form.exit) || 0,
-        pnl: parseFloat(form.pnl) || 0,
+        grossPnl: grossNum,
+        fees: feesNum,
+        pnl: netPnl, // the server recomputes it from grossPnl − fees as well
         riskAmount: Math.abs(parseFloat(form.riskAmount)) || 0,
         pips: parseFloat(form.pips) || 0,
         rr: parseFloat(form.rr) || 0,
@@ -367,6 +386,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         setCheckedRules(new Set());
         setAccountsTouched(false);
         setRiskManual(false);
+        setFeesManual(false);
         setTimeout(() => router.push("/journal"), 800);
       }
       router.refresh();
@@ -387,6 +407,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     setScreenshot("");
     setAccountsTouched(false);
     setRiskManual(false);
+    setFeesManual(false);
   };
 
   const toggleMistake = (id: number) => {
@@ -394,7 +415,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     setSelectedMistakes(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
   };
 
-  const pnlVal = parseFloat(form.pnl) || 0;
+  const pnlVal = netPnl;
   const isProfit = pnlVal > 0;
 
   const inp = (hasErr: boolean) => cn("inp", hasErr && "border-red/60 focus:border-red/80 focus:shadow-[0_0_0_3px_rgba(255,69,96,0.1)]");
@@ -631,7 +652,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <Label>
-                P&L ($ mein{selectedAccounts.length > 1 ? `, per account × ${selectedAccounts.length}` : ""}) <span className="text-red">*</span>
+                Gross P&L ($ mein{selectedAccounts.length > 1 ? `, per account × ${selectedAccounts.length}` : ""}) <span className="text-red">*</span>
               </Label>
               <div className="flex items-center gap-2">
                 {pnlAutoCalc !== null && (
@@ -699,6 +720,16 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
             </div>
           </div>
 
+          <FormGroup label="Fees / Commission ($, per account)">
+            <input type="number" className="inp" placeholder={autoFees != null ? "Auto" : "0"} step="0.01"
+              value={form.fees} onChange={e => { setFeesManual(true); set("fees", e.target.value); }} />
+            <span className="text-[10px] text-ink-500">
+              {commissionRate > 0 ? `${form.lot || 0} × ${formatCurrency(commissionRate)} commission` : "Account par commission set karo — ya yahan khud daalo"}
+              {feesManual && autoFees != null && (
+                <button type="button" className="ml-2 underline" onClick={() => setFeesManual(false)}>auto ({formatCurrency(autoFees)})</button>
+              )}
+            </span>
+          </FormGroup>
           <FormGroup label="Strategy Used">
             <select className="inp" value={form.strategy} onChange={e => set("strategy", e.target.value)}>
               <option value="">Select strategy...</option>
@@ -714,7 +745,9 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
             isProfit ? "bg-green/8 border-green/20" : pnlVal < 0 ? "bg-red/8 border-red/20" : "bg-bg-700 border-black/[0.06]"
           )}>
             <div>
-              <div className="text-xs text-ink-400 mb-1">Trade Result Preview</div>
+              <div className="text-xs text-ink-400 mb-1">
+                Net P&L{feesNum > 0 ? ` (gross ${formatPnl(grossNum)} − fees ${formatCurrency(feesNum)})` : ""}
+              </div>
               <div className={cn("text-2xl font-bold font-mono", isProfit ? "text-green" : pnlVal < 0 ? "text-red" : "text-ink-300")}>
                 {pnlVal >= 0 ? "+$" : "-$"}{Math.abs(pnlVal).toLocaleString("en-US", { maximumFractionDigits: 2 })}
               </div>
