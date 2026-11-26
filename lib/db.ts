@@ -48,6 +48,7 @@ const TradeSchema = new mongoose.Schema(
     target: { type: Number, default: 0 },
     exit: { type: Number, default: 0 },
     pnl: { type: Number, required: true },
+    riskAmount: { type: Number, default: 0, min: 0 }, // $ lost if SL hit, per account; 0 = not known
     pips: { type: Number, default: 0 },
     rr: { type: Number, default: 0 },
     strategy: { type: String, default: "" },

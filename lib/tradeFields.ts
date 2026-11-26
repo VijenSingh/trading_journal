@@ -2,7 +2,7 @@
 // createdAt, unknown keys, operators) is dropped before it reaches MongoDB.
 const TRADE_FIELDS = [
   "date", "time", "pair", "type", "lot", "entry", "sl", "target", "exit",
-  "pnl", "pips", "rr", "strategy", "session", "mistakes", "noMistakesFlag",
+  "pnl", "riskAmount", "pips", "rr", "strategy", "session", "mistakes", "noMistakesFlag",
   "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm", "accounts",
 ] as const;
 

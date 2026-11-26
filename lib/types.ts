@@ -11,6 +11,7 @@ export interface Trade {
   target: number;
   exit: number;
   pnl: number;
+  riskAmount?: number; // $ at risk if SL is hit (per account); R = pnl / riskAmount
   pips: number;
   rr: number;
   strategy: string;

@@ -6,15 +6,15 @@ import { Card, Button, Label } from "@/components/ui";
 import { PAIRS, PAIR_GROUPS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, Trade, ACTIVE_STATUSES } from "@/lib/types";
 import { useAccounts } from "@/lib/accounts";
 import { tradeWouldBreak } from "@/lib/accountRules";
-import { calcPnl, getInstrument, isFuture } from "@/lib/instruments";
-import { getToday, getNow, cn, compressImage, formatCurrency } from "@/lib/utils";
+import { calcPnl, calcRisk, getInstrument, isFuture } from "@/lib/instruments";
+import { getToday, getNow, cn, compressImage, formatCurrency, formatR } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { getActiveFirm } from "@/lib/activeFirm";
 import { Save, X, Zap, PenLine, CheckCircle2, ImagePlus, Trash2 } from "lucide-react";
 
 const defaultForm = {
   date: "", time: "", pair: "", customPair: "", type: "BUY" as "BUY" | "SELL",
-  lot: "", entry: "", sl: "", target: "", exit: "", pnl: "",
+  lot: "", entry: "", sl: "", target: "", exit: "", pnl: "", riskAmount: "",
   pips: "", rr: "", strategy: "", session: "", emotion: "", propFirm: "",
   reasoning: "", lesson: "", rulesFollowed: "", tags: "",
 };
@@ -31,6 +31,8 @@ function FormGroup({ label, children, required }: { label: string; children: Rea
   );
 }
 
+const getPairName = (f: { pair: string; customPair: string }) => (f.pair === "Other" ? f.customPair : f.pair);
+
 function tradeToForm(t: Trade) {
   const knownPair = PAIRS.includes(t.pair);
   return {
@@ -40,6 +42,7 @@ function tradeToForm(t: Trade) {
     lot: t.lot ? String(t.lot) : "", entry: t.entry ? String(t.entry) : "",
     sl: t.sl ? String(t.sl) : "", target: t.target ? String(t.target) : "",
     exit: t.exit ? String(t.exit) : "", pnl: t.pnl != null ? String(t.pnl) : "",
+    riskAmount: t.riskAmount ? String(t.riskAmount) : "",
     pips: t.pips ? String(t.pips) : "", rr: t.rr ? String(t.rr) : "",
     strategy: t.strategy || "", session: t.session || "", emotion: t.emotion || "", propFirm: t.propFirm || "",
     reasoning: t.reasoning || "", lesson: t.lesson || "", rulesFollowed: t.rulesFollowed || "",
@@ -73,6 +76,8 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   const [loading, setLoading] = useState(false);
   // In edit mode, keep the saved P&L as-is until entry/exit/lot are actually changed.
   const [pnlManualOverride, setPnlManualOverride] = useState(isEdit);
+  // Risk ($) follows entry/SL/lot until the user types their own number.
+  const [riskManual, setRiskManual] = useState(!!initialTrade?.riskAmount);
   const [pnlAutoCalc, setPnlAutoCalc] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [screenshot, setScreenshot] = useState(initialTrade?.screenshot || "");
@@ -213,6 +218,15 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.entry, form.exit, form.lot, form.pair, form.customPair, form.type, pnlManualOverride]);
 
+  // ── Auto-calc risk ($ lost if SL is hit) ──
+  const autoRisk = calcRisk(getPairName(form), parseFloat(form.entry), parseFloat(form.sl), parseFloat(form.lot));
+  useEffect(() => {
+    if (riskManual) return;
+    setForm(f => ({ ...f, riskAmount: autoRisk != null ? String(autoRisk) : "" }));
+  }, [autoRisk, riskManual]);
+  const riskNum = parseFloat(form.riskAmount);
+  const liveR = riskNum > 0 && form.pnl !== "" ? (parseFloat(form.pnl) || 0) / riskNum : null;
+
   // ── Auto-calc RR ──
   useEffect(() => {
     const e = parseFloat(form.entry), s = parseFloat(form.sl), t = parseFloat(form.target);
@@ -308,6 +322,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         target: parseFloat(form.target) || 0,
         exit: parseFloat(form.exit) || 0,
         pnl: parseFloat(form.pnl) || 0,
+        riskAmount: Math.abs(parseFloat(form.riskAmount)) || 0,
         pips: parseFloat(form.pips) || 0,
         rr: parseFloat(form.rr) || 0,
         strategy: form.strategy,
@@ -350,6 +365,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         setScreenshot("");
         setCheckedRules(new Set());
         setAccountsTouched(false);
+        setRiskManual(false);
         setTimeout(() => router.push("/journal"), 800);
       }
       router.refresh();
@@ -369,6 +385,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     setErrors({});
     setScreenshot("");
     setAccountsTouched(false);
+    setRiskManual(false);
   };
 
   const toggleMistake = (id: number) => {
@@ -555,6 +572,16 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
             <input type="number" className={inp(!!errors.exit)} placeholder="e.g. 2355.00" step="0.01"
               value={form.exit} onChange={e => set("exit", e.target.value)} />
             {errors.exit && <span className="text-[11px] text-red">{errors.exit}</span>}
+          </FormGroup>
+          <FormGroup label="Risk ($, SL hit hone par)">
+            <input type="number" className="inp" placeholder={autoRisk != null ? "Auto" : "e.g. 200"} step="0.01"
+              value={form.riskAmount} onChange={e => { setRiskManual(true); set("riskAmount", e.target.value); }} />
+            <span className="text-[10px] text-ink-500">
+              {liveR != null ? <b className={liveR >= 0 ? "text-green" : "text-red"}>{formatR(Math.round(liveR * 100) / 100)}</b> : "R ke liye risk chahiye"}
+              {riskManual && autoRisk != null && (
+                <button type="button" className="ml-2 underline" onClick={() => setRiskManual(false)}>auto ({formatCurrency(autoRisk)})</button>
+              )}
+            </span>
           </FormGroup>
           <FormGroup label="Pips (optional)">
             <input type="number" className="inp" placeholder="Auto ya manual" step="0.1"
