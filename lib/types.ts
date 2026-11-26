@@ -1,4 +1,4 @@
-import type { AccountRules, RuleCheck } from "./accountRules";
+import type { AccountRules, RuleCheck, PayoutCheck } from "./accountRules";
 export interface Trade {
   _id?: string;
   date: string;
@@ -66,6 +66,7 @@ export interface AccountStats extends PropAccount {
   lastTradeDate: string;
   net: number;          // payouts - fees: what the account has made you so far
   check: RuleCheck;     // prop firm rule status (lib/accountRules)
+  payout: PayoutCheck;  // payout eligibility for the current cycle
 }
 
 // URL of a trade's screenshot; updatedAt busts the (immutable) browser cache after an edit.

@@ -1,5 +1,5 @@
 import type { AccountStats, PropAccount } from "@/lib/types";
-import { evaluateRules, TradeEvent } from "@/lib/accountRules";
+import { evaluateRules, evaluatePayout, TradeEvent } from "@/lib/accountRules";
 
 interface TradeRow { date: string; time?: string; pnl: number; accounts?: string[] }
 interface TxnRow { accountId?: string; type: "investment" | "payout"; amount: number; date: string }
@@ -53,6 +53,8 @@ export function computeAccountStats(accounts: PropAccount[], trades: TradeRow[],
       lastTradeDate,
       net: r2(paid - fees),
       check: evaluateRules(a.size, a.rules, tradeEvents, today),
+      payout: evaluatePayout(a.size, a.rules, tradeEvents,
+        events.filter(e => e.kind === "payout").map(e => ({ date: e.date, amount: e.amount }))),
     };
   });
 }

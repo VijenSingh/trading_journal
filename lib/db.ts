@@ -132,6 +132,10 @@ const AccountSchema = new mongoose.Schema(
       dailyLossLimit: { type: Number, default: 0, min: 0 },
       profitTarget: { type: Number, default: 0, min: 0 },
       consistencyPct: { type: Number, default: 0, min: 0, max: 100 }, // best day ≤ this % of total profit
+      // payout eligibility, counted since the last payout (or the start)
+      minTradingDays: { type: Number, default: 0, min: 0 },   // days that count toward a payout
+      minDayProfit: { type: Number, default: 0, min: 0 },     // a day counts only if it made at least this
+      payoutBuffer: { type: Number, default: 0, min: 0 },     // balance must be ≥ size + buffer
     },
   },
   { timestamps: true }

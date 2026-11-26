@@ -89,4 +89,10 @@ test("commission: net P&L on new trades, one-off apply to older ones", async () 
 
   const c = (await s.json("/api/accounts")).data.find((x: any) => x._id === C._id);
   assert.equal(c.pnl, 141); // 94 + 47, stats use net
+
+  // payout planner through the API
+  assert.equal(c.payout.active, false);
+  await s.json(`/api/accounts/${C._id}`, { rules: { minTradingDays: "3", payoutBuffer: "100" } }, "PATCH");
+  const p = (await s.json("/api/accounts")).data.find((x: any) => x._id === C._id).payout;
+  assert.deepEqual([p.active, p.daysCounted, p.daysNeeded, p.eligible, p.summary], [true, 2, 1, false, "Payout ke liye: 1 din aur"]);
 });

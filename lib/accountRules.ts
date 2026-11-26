@@ -14,10 +14,14 @@ export interface AccountRules {
   dailyLossLimit: number;
   profitTarget: number;
   consistencyPct: number;
+  minTradingDays: number;
+  minDayProfit: number;
+  payoutBuffer: number;
 }
 
 export const EMPTY_RULES: AccountRules = {
   drawdownType: "none", maxDrawdown: 0, lockAt: null, dailyLossLimit: 0, profitTarget: 0, consistencyPct: 0,
+  minTradingDays: 0, minDayProfit: 0, payoutBuffer: 0,
 };
 
 // Cleans rules from a request body; returns null if a value is invalid.
@@ -32,9 +36,13 @@ export function sanitizeRules(input: unknown): AccountRules | null {
     dailyLossLimit: num(b.dailyLossLimit),
     profitTarget: num(b.profitTarget),
     consistencyPct: num(b.consistencyPct),
+    minTradingDays: num(b.minTradingDays),
+    minDayProfit: num(b.minDayProfit),
+    payoutBuffer: num(b.payoutBuffer),
   };
-  const nums = [out.maxDrawdown, out.dailyLossLimit, out.profitTarget, out.consistencyPct, out.lockAt ?? 0];
-  if (nums.some(v => !Number.isFinite(v) || v < 0) || out.consistencyPct > 100) return null;
+  const nums = [out.maxDrawdown, out.dailyLossLimit, out.profitTarget, out.consistencyPct, out.lockAt ?? 0,
+    out.minTradingDays, out.minDayProfit, out.payoutBuffer];
+  if (nums.some(v => !Number.isFinite(v) || v < 0) || out.consistencyPct > 100 || !Number.isInteger(out.minTradingDays)) return null;
   if (out.drawdownType === "eod_trailing" && !(out.maxDrawdown > 0)) return null;
   return out;
 }
@@ -164,4 +172,62 @@ export function tradeWouldBreak(check: RuleCheck, rules: AccountRules | undefine
   if (check.room != null && check.room + pnl <= 0) return "drawdown floor toot jayega";
   if (r.dailyLossLimit > 0 && check.dailyRoom != null && check.dailyRoom + pnl <= 0) return "daily loss limit cross ho jayegi";
   return null;
+}
+
+// ─── Payout planner ──────────────────────────────────────────────────────────
+// Counted over the current payout cycle: trades after the last payout (or all trades
+// when there has been none). Each rule that is set must be met:
+//  - minTradingDays: days in the cycle whose P&L ≥ minDayProfit (any trading day if 0)
+//  - payoutBuffer:   balance (size + P&L − payouts) ≥ size + buffer
+//  - consistencyPct: the cycle's best day ≤ that % of the cycle's profit
+export interface PayoutCheck {
+  active: boolean;                 // at least one payout rule is set
+  eligible: boolean;
+  cycleStart: string | null;       // date of the last payout (cycle = after it)
+  cycleProfit: number;
+  daysCounted: number;
+  daysNeeded: number;              // still missing
+  bufferProfitNeeded: number;      // $ still missing for the buffer
+  consistencyProfitNeeded: number; // $ more cycle profit needed for the best day to fit
+  summary: string;                 // short Hinglish line
+}
+
+export function hasPayoutRules(r?: Partial<AccountRules>) {
+  return !!r && ((r.minTradingDays || 0) > 0 || (r.payoutBuffer || 0) > 0);
+}
+
+export function evaluatePayout(
+  size: number, rules: AccountRules | undefined, trades: TradeEvent[], payouts: { date: string; amount: number }[],
+): PayoutCheck {
+  const r = { ...EMPTY_RULES, ...(rules || {}) };
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const lastPayout = payouts.map(p => p.date).sort().pop() || null;
+  const paid = payouts.reduce((s, p) => s + p.amount, 0);
+  const total = trades.reduce((s, t) => s + t.pnl, 0);
+  const balance = size + total - paid;
+
+  const day = new Map<string, number>();
+  for (const t of trades) {
+    if (lastPayout && t.date <= lastPayout) continue;
+    day.set(t.date, (day.get(t.date) || 0) + t.pnl);
+  }
+  const cycleProfit = Array.from(day.values()).reduce((a, b) => a + b, 0);
+  const daysCounted = Array.from(day.values()).filter(p => (r.minDayProfit > 0 ? p >= r.minDayProfit : true)).length;
+  const daysNeeded = Math.max(0, r.minTradingDays - daysCounted);
+  const bufferProfitNeeded = r.payoutBuffer > 0 ? Math.max(0, size + r.payoutBuffer - balance) : 0;
+  const best = Math.max(0, ...Array.from(day.values()));
+  const consistencyProfitNeeded = r.consistencyPct > 0 && best > 0 ? Math.max(0, best / (r.consistencyPct / 100) - cycleProfit) : 0;
+
+  const active = hasPayoutRules(r);
+  const eligible = active && daysNeeded === 0 && bufferProfitNeeded === 0 && consistencyProfitNeeded === 0 && cycleProfit > 0;
+  const parts: string[] = [];
+  if (daysNeeded) parts.push(`${daysNeeded} din aur`);
+  const money = Math.max(bufferProfitNeeded, consistencyProfitNeeded);
+  if (money > 0) parts.push(`$${r2(money).toLocaleString("en-US")} aur profit`);
+  if (!parts.length && cycleProfit <= 0) parts.push("is cycle mein profit chahiye");
+  return {
+    active, eligible, cycleStart: lastPayout, cycleProfit: r2(cycleProfit),
+    daysCounted, daysNeeded, bufferProfitNeeded: r2(bufferProfitNeeded), consistencyProfitNeeded: r2(consistencyProfitNeeded),
+    summary: !active ? "" : eligible ? "✅ Payout eligible" : `Payout ke liye: ${parts.join(", ")}`,
+  };
 }
