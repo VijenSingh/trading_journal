@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, PlusCircle, BookOpen, BarChart3,
   CalendarDays, Target, BookMarked, Brain, TrendingUp,
-  Building2, Menu, X, Calculator, Landmark, ClipboardCheck, Image, Award, Lightbulb, LogOut, Wallet,
+  Building2, Menu, X, Calculator, Landmark, ClipboardCheck, Image, Award, Lightbulb, LogOut, Wallet, BookOpenCheck, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FirmSwitcher from "./FirmSwitcher";
@@ -14,6 +14,7 @@ const nav = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/account", icon: Building2, label: "Performance" },
   { href: "/trade/new", icon: PlusCircle, label: "New Trade" },
+  { href: "/trade/quick", icon: Zap, label: "Quick Trade" },
   { href: "/calculator", icon: Calculator, label: "Calculator" },
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
@@ -21,6 +22,7 @@ const nav = [
   { href: "/monthly", icon: CalendarDays, label: "Monthly P&L" },
   { href: "/review", icon: ClipboardCheck, label: "Weekly Review" },
   { href: "/gallery", icon: Image, label: "Gallery" },
+  { href: "/playbook", icon: BookOpenCheck, label: "Playbook" },
   { href: "/accounts", icon: Wallet, label: "Accounts" },
   { href: "/propfirms", icon: Landmark, label: "Prop Firms" },
   { href: "/certificates", icon: Award, label: "Certificates" },

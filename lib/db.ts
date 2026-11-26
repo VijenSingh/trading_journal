@@ -48,7 +48,9 @@ const TradeSchema = new mongoose.Schema(
     sl: { type: Number, default: 0 },
     target: { type: Number, default: 0 },
     exit: { type: Number, default: 0 },
-    pnl: { type: Number, required: true },
+    pnl: { type: Number, required: true },         // NET P&L per account (after fees) — what every stat uses
+    grossPnl: { type: Number, default: null },     // before fees; null on trades saved before fees existed
+    fees: { type: Number, default: 0, min: 0 },    // commission etc. per account
     riskAmount: { type: Number, default: 0, min: 0 }, // $ lost if SL hit, per account; 0 = not known
     pips: { type: Number, default: 0 },
     rr: { type: Number, default: 0 },
@@ -64,6 +66,8 @@ const TradeSchema = new mongoose.Schema(
     screenshot: { type: String, default: "" },     // legacy/fallback: base64 data URL kept in the DB
     screenshotPath: { type: String, default: "" }, // Vercel Blob pathname when the image lives in Blob
     propFirm: { type: String, default: "" },
+    // Playbook checklist for the trade's setup: how many of its rules were ticked.
+    setupChecks: { type: { done: Number, total: Number, _id: false }, default: null },
     // Accounts this trade ran on (trade copier). pnl is per account, so each one gets it.
     accounts: { type: [String], default: [] },
   },
@@ -121,6 +125,7 @@ const AccountSchema = new mongoose.Schema(
       default: [],
     },
     notes: { type: String, default: "" },
+    commissionPerContract: { type: Number, default: 0, min: 0 }, // round-trip, USD
     // Prop firm rules for this account; 0 / null means "not set". See lib/accountRules.ts.
     rules: {
       drawdownType: { type: String, enum: ["none", "eod_trailing"], default: "none" },
@@ -129,6 +134,10 @@ const AccountSchema = new mongoose.Schema(
       dailyLossLimit: { type: Number, default: 0, min: 0 },
       profitTarget: { type: Number, default: 0, min: 0 },
       consistencyPct: { type: Number, default: 0, min: 0, max: 100 }, // best day ≤ this % of total profit
+      // payout eligibility, counted since the last payout (or the start)
+      minTradingDays: { type: Number, default: 0, min: 0 },   // days that count toward a payout
+      minDayProfit: { type: Number, default: 0, min: 0 },     // a day counts only if it made at least this
+      payoutBuffer: { type: Number, default: 0, min: 0 },     // balance must be ≥ size + buffer
     },
   },
   { timestamps: true }
@@ -244,6 +253,21 @@ export const GoalModel =
 
 export const TransactionModel =
   mongoose.models.Transaction || mongoose.model("Transaction", TransactionSchema);
+
+// ─── Playbook setup (a named trade setup with its checklist and examples) ───
+// Trades link to a setup through their strategy name.
+const SetupSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, unique: true },
+    description: { type: String, default: "" },
+    checklist: { type: [String], default: [] },
+    images: { type: [{ data: String, _id: false }], default: [] }, // data URLs, at most 3
+  },
+  { timestamps: true }
+);
+
+export const SetupModel =
+  mongoose.models.Setup || mongoose.model("Setup", SetupSchema);
 
 export const AccountModel =
   mongoose.models.Account || mongoose.model("Account", AccountSchema);

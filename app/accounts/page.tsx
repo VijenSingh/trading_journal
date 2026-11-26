@@ -98,6 +98,22 @@ function AccountCard({ a }: { a: AccountStats }) {
     patch({ status, statusDate: date.trim() }, `Status: ${ACCOUNT_STATUS_LABELS[status]} ✅`);
   };
 
+  const editCommission = () => {
+    const v = window.prompt("Commission per contract ($, round-trip):", a.commissionPerContract ? String(a.commissionPerContract) : "");
+    if (v === null) return;
+    patch({ commissionPerContract: v.trim() }, "Commission update ho gaya ✅");
+  };
+
+  const applyCommission = async () => {
+    if (!confirm(`"${a.name}" ke jin purane trades par fees nahi hai, unpar contracts × ${formatCurrency(a.commissionPerContract || 0)} fees lagegi aur unka P&L net ho jayega. Ye ek hi baar hota hai — karein?`)) return;
+    const res = await fetch(`/api/accounts/${a._id}/apply-commission`, { method: "POST" });
+    const j = await res.json();
+    if (!res.ok || !j.success) { toast.error(j.error || "Nahi ho paya"); return; }
+    toast.success(`${j.updated} trades par commission lag gaya ✅`);
+    invalidateAccounts();
+    invalidateTradeData();
+  };
+
   const rename = () => {
     const name = window.prompt("Account ka naam:", a.name);
     if (name && name.trim() !== a.name) patch({ name: name.trim() }, "Naam update ho gaya ✅");
@@ -145,6 +161,14 @@ function AccountCard({ a }: { a: AccountStats }) {
         <div>
           <button onClick={rename} className="text-sm font-bold text-ink-100 hover:underline" title="Naam badlo">{a.name}</button>
           <div className="text-[11px] text-ink-500 font-mono">{formatCurrency(a.size)} · start {a.startDate}{a.lastTradeDate ? ` · last trade ${a.lastTradeDate}` : ""}</div>
+          <button onClick={editCommission} className="text-[11px] text-ink-400 hover:text-ink-100 underline decoration-dotted" title="Commission badlo">
+            commission {a.commissionPerContract ? `${formatCurrency(a.commissionPerContract)}/contract` : "set nahi"}
+          </button>
+          {!!a.commissionPerContract && (
+            <button onClick={applyCommission} className="ml-2 text-[11px] text-blue hover:underline" title="Jin purane trades par fees nahi hai, unpar ye commission lagao">
+              purane trades par lagao
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={STATUS_BADGE[a.status]}>{ACCOUNT_STATUS_LABELS[a.status]}</Badge>
@@ -229,7 +253,7 @@ function Fig({ label, value, sub, tone }: { label: string; value: string; sub?: 
 
 function AddAccountModal({ defaultFirm, onClose }: { defaultFirm: string; onClose: () => void }) {
   const [firms, setFirms] = useState<string[]>([]);
-  const [f, setF] = useState({ propFirm: defaultFirm, name: "", size: "50000", startDate: getToday(), fee: "", status: "evaluation" as AccountStatus, notes: "" });
+  const [f, setF] = useState({ propFirm: defaultFirm, name: "", size: "50000", startDate: getToday(), fee: "", status: "evaluation" as AccountStatus, notes: "", commissionPerContract: "" });
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     fetch("/api/propfirms").then(r => r.json()).then(j => { if (j.success) setFirms(j.data); }).catch(() => {});
@@ -240,7 +264,7 @@ function AddAccountModal({ defaultFirm, onClose }: { defaultFirm: string; onClos
     try {
       const res = await fetch("/api/accounts", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, size: parseFloat(f.size), fee: parseFloat(f.fee) || 0 }),
+        body: JSON.stringify({ ...f, size: parseFloat(f.size), fee: parseFloat(f.fee) || 0, commissionPerContract: parseFloat(f.commissionPerContract) || 0 }),
       });
       const j = await res.json();
       if (!res.ok || !j.success) throw new Error(j.error);
@@ -278,6 +302,10 @@ function AddAccountModal({ defaultFirm, onClose }: { defaultFirm: string; onClos
             <select className="inp" value={f.status} onChange={e => setF({ ...f, status: e.target.value as AccountStatus })}>
               {(Object.keys(ACCOUNT_STATUS_LABELS) as AccountStatus[]).map(s => <option key={s} value={s}>{ACCOUNT_STATUS_LABELS[s]}</option>)}
             </select></div>
+          <div className="col-span-2 flex flex-col gap-1"><Label>Commission per contract ($, round-trip)</Label>
+            <input type="number" className="inp" placeholder="e.g. 3.98 (NQ) / 1.04 (MNQ)" step="0.01" value={f.commissionPerContract}
+              onChange={e => setF({ ...f, commissionPerContract: e.target.value })} />
+            <span className="text-[10px] text-ink-500">Trade form isse fees apne aap bharega: contracts × commission</span></div>
           <div className="col-span-2 flex flex-col gap-1"><Label>Notes</Label>
             <input className="inp" placeholder="optional" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
         </div>

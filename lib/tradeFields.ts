@@ -2,8 +2,8 @@
 // createdAt, unknown keys, operators) is dropped before it reaches MongoDB.
 const TRADE_FIELDS = [
   "date", "time", "exitTime", "pair", "type", "lot", "entry", "sl", "target", "exit",
-  "pnl", "riskAmount", "pips", "rr", "strategy", "session", "mistakes", "noMistakesFlag",
-  "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm", "accounts",
+  "pnl", "grossPnl", "fees", "riskAmount", "pips", "rr", "strategy", "session", "mistakes", "noMistakesFlag",
+  "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm", "accounts", "setupChecks",
 ] as const;
 
 export function pickTradeFields(body: unknown): Record<string, unknown> {
@@ -17,6 +17,27 @@ export function pickTradeFields(body: unknown): Record<string, unknown> {
   if ("exitTime" in out) {
     const v = typeof out.exitTime === "string" ? out.exitTime.trim() : "";
     out.exitTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : "";
+  }
+  // Fees: a trade sent with grossPnl gets pnl = grossPnl − fees here, so the stored net
+  // P&L can never disagree with its parts.
+  if ("fees" in out) {
+    const f = Number(out.fees);
+    out.fees = Number.isFinite(f) && f > 0 ? Math.round(f * 100) / 100 : 0;
+  }
+  if ("grossPnl" in out) {
+    const g = out.grossPnl === null || out.grossPnl === "" ? null : Number(out.grossPnl);
+    if (g === null || !Number.isFinite(g)) delete out.grossPnl;
+    else {
+      out.grossPnl = Math.round(g * 100) / 100;
+      out.pnl = Math.round((g - Number(out.fees || 0)) * 100) / 100;
+    }
+  }
+  // setupChecks: { done, total } with 0 ≤ done ≤ total ≤ 50, or null
+  if ("setupChecks" in out) {
+    const v = out.setupChecks as { done?: unknown; total?: unknown } | null;
+    const done = Number(v?.done), total = Number(v?.total);
+    out.setupChecks = v && Number.isInteger(done) && Number.isInteger(total) && done >= 0 && total > 0 && done <= total && total <= 50
+      ? { done, total } : null;
   }
   // accounts: unique account ids only
   if ("accounts" in out) {

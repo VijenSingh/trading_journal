@@ -369,6 +369,42 @@ export function getMistakeFreq(trades: Trade[]) {
   return f;
 }
 
+// ─── What mistakes cost ──────────────────────────────────────────────────────
+// Per mistake: how many trades carried it, their P&L and average, against trades with
+// no mistake at all. A trade with two mistakes counts under both, so per-mistake
+// totals can overlap; the "without mistakes" figure counts each trade once.
+export interface MistakeCost { id: number; name: string; trades: number; pnl: number; avgPnl: number; winRate: number; avgR: number | null }
+export interface MistakeCostSummary {
+  costs: MistakeCost[];            // only mistakes that occurred, costliest first
+  cleanTrades: number;
+  cleanAvgPnl: number;
+  mistakeTrades: number;           // trades with at least one mistake
+  mistakePnl: number;              // their combined P&L (each trade once)
+  totalPnl: number;
+  pnlWithoutMistakeTrades: number; // totalPnl − mistakePnl
+}
+export function getMistakeCosts(trades: Trade[]): MistakeCostSummary {
+  const withM = trades.filter(t => (t.mistakes || []).length > 0);
+  const clean = trades.filter(t => !(t.mistakes || []).length);
+  const sum = (ts: Trade[]) => ts.reduce((a, t) => a + n(t.pnl), 0);
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const costs = MISTAKES.map(m => {
+    const ts = trades.filter(t => (t.mistakes || []).includes(m.id));
+    const rs = ts.map(rMultiple).filter((r): r is number => r != null);
+    return {
+      id: m.id, name: m.name, trades: ts.length, pnl: r2(sum(ts)),
+      avgPnl: ts.length ? r2(sum(ts) / ts.length) : 0,
+      winRate: ts.length ? Math.round((ts.filter(t => n(t.pnl) > 0).length / ts.length) * 100) : 0,
+      avgR: rs.length ? r2(rs.reduce((a, b) => a + b, 0) / rs.length) : null,
+    };
+  }).filter(c => c.trades > 0).sort((a, b) => a.pnl - b.pnl);
+  const totalPnl = r2(sum(trades)), mistakePnl = r2(sum(withM));
+  return {
+    costs, cleanTrades: clean.length, cleanAvgPnl: clean.length ? r2(sum(clean) / clean.length) : 0,
+    mistakeTrades: withM.length, mistakePnl, totalPnl, pnlWithoutMistakeTrades: r2(totalPnl - mistakePnl),
+  };
+}
+
 // ─── Pattern Insights ────────────────────────────────────────────────────────
 // Zero-cost pattern detection — no AI/LLM calls, purely correlates the structured
 // fields already tracked on every trade (mistakes, emotion, tags, strategy, session)
@@ -476,13 +512,13 @@ function csvCell(v: unknown): string {
 }
 const CSV_HEADERS = [
   "Date", "Time", "Exit Time", "Pair", "Type", "Lot", "Entry", "SL", "Target", "Exit",
-  "P&L", "Risk", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
+  "P&L", "Fees", "Risk", "Pips", "RR", "Strategy", "Session", "Emotion", "Prop Firm", "Mistakes", "Tags",
   "Reasoning", "Lesson", "Rules Followed",
 ];
 export function tradesToCsv(trades: Trade[]): string {
   const rows = trades.map(t => [
     t.date, t.time, t.exitTime || "", t.pair, t.type, t.lot, t.entry, t.sl, t.target, t.exit,
-    t.pnl, t.riskAmount || "", t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
+    t.pnl, t.fees || "", t.riskAmount || "", t.pips, t.rr, t.strategy, t.session, t.emotion, t.propFirm || "",
     (t.mistakes || []).join("; "), (t.tags || []).join("; "),
     t.reasoning, t.lesson, t.rulesFollowed,
   ].map(csvCell).join(","));
@@ -551,7 +587,7 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
   const col = {
     date: idx("date"), time: idx("time"), exitTime: idx("exit time"), pair: idx("pair"), type: idx("type"),
     lot: idx("lot"), entry: idx("entry"), sl: idx("sl"), target: idx("target"), exit: idx("exit"),
-    pnl: idx("p&l"), risk: idx("risk"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
+    pnl: idx("p&l"), fees: idx("fees"), risk: idx("risk"), pips: idx("pips"), rr: idx("rr"), strategy: idx("strategy"), session: idx("session"),
     emotion: idx("emotion"), propFirm: idx("prop firm"), mistakes: idx("mistakes"), tags: idx("tags"),
     reasoning: idx("reasoning"), lesson: idx("lesson"), rulesFollowed: idx("rules followed"),
   };
@@ -589,14 +625,15 @@ export function csvToTrades(csvText: string, defaultPropFirm: string): CsvImport
     };
     const lot = optNum(col.lot, "Lot"), entry = optNum(col.entry, "Entry"), sl = optNum(col.sl, "SL"),
       target = optNum(col.target, "Target"), exit = optNum(col.exit, "Exit"),
-      pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR"), risk = optNum(col.risk, "Risk");
-    if ([lot, entry, sl, target, exit, pips, rr, risk].some(v => v === null)) return;
+      pips = optNum(col.pips, "Pips"), rr = optNum(col.rr, "RR"), risk = optNum(col.risk, "Risk"), fees = optNum(col.fees, "Fees");
+    if ([lot, entry, sl, target, exit, pips, rr, risk, fees].some(v => v === null)) return;
     trades.push({
       date, time: normalizeTime(get(col.time)), exitTime: normalizeTime(get(col.exitTime)), pair,
       type: get(col.type).toUpperCase() === "SELL" ? "SELL" : "BUY",
       lot: lot!, entry: entry!, sl: sl!, target: target!, exit: exit!,
       pnl,
       riskAmount: Math.abs(risk!),
+      fees: Math.abs(fees!), // P&L column is taken as net
       pips: pips!, rr: rr!,
       strategy: get(col.strategy),
       session: get(col.session),

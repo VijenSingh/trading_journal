@@ -1,4 +1,4 @@
-import type { AccountRules, RuleCheck } from "./accountRules";
+import type { AccountRules, RuleCheck, PayoutCheck } from "./accountRules";
 export interface Trade {
   _id?: string;
   date: string;
@@ -11,7 +11,9 @@ export interface Trade {
   sl: number;
   target: number;
   exit: number;
-  pnl: number;
+  pnl: number;          // net (after fees), per account
+  grossPnl?: number | null; // before fees; absent on older trades
+  fees?: number;        // commission etc. per account
   riskAmount?: number; // $ at risk if SL is hit (per account); R = pnl / riskAmount
   pips: number;
   rr: number;
@@ -28,6 +30,7 @@ export interface Trade {
   hasScreenshot?: boolean;
   propFirm?: string;
   accounts?: string[]; // account ids this trade ran on (copier); pnl is per account
+  setupChecks?: { done: number; total: number } | null; // playbook checklist ticks
   createdAt?: string;
   updatedAt?: string;
 }
@@ -48,6 +51,7 @@ export interface PropAccount {
   status: AccountStatus;
   statusHistory: { status: AccountStatus; date: string }[];
   notes: string;
+  commissionPerContract?: number; // round-trip USD per contract
   rules?: AccountRules;
 }
 
@@ -63,6 +67,7 @@ export interface AccountStats extends PropAccount {
   lastTradeDate: string;
   net: number;          // payouts - fees: what the account has made you so far
   check: RuleCheck;     // prop firm rule status (lib/accountRules)
+  payout: PayoutCheck;  // payout eligibility for the current cycle
 }
 
 // URL of a trade's screenshot; updatedAt busts the (immutable) browser cache after an edit.

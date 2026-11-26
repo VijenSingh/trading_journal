@@ -70,3 +70,29 @@ test("restore keeps account ids and links; delete unlinks", async () => {
   const counts = await restoreFullBackup(old, () => {});
   assert.deepEqual([counts.accounts, counts.trades], [0, 4]);
 });
+
+test("commission: net P&L on new trades, one-off apply to older ones", async () => {
+  const C = (await s.json("/api/accounts", { propFirm: "Lucid", name: "50K #3", size: 50000, startDate: "2026-11-01", commissionPerContract: 1.5 })).data;
+  assert.equal(C.commissionPerContract, 1.5);
+  // an older trade, saved before fees existed
+  await s.json("/api/trades", { ...base, date: "2026-11-02", lot: 4, pnl: 100, accounts: [C._id] });
+  // a new trade from the form: gross + fees
+  const t2 = (await s.json("/api/trades", { ...base, date: "2026-11-03", lot: 2, grossPnl: 50, fees: 3, pnl: 0, accounts: [C._id] })).data;
+  assert.deepEqual([t2.grossPnl, t2.fees, t2.pnl], [50, 3, 47]);
+
+  const r1 = await s.json(`/api/accounts/${C._id}/apply-commission`, {});
+  assert.equal(r1.updated, 1);
+  const again = await s.json(`/api/accounts/${C._id}/apply-commission`, {});
+  assert.equal(again.updated, 0, "running twice changes nothing");
+  const old = (await s.json("/api/trades?limit=50")).data.find((t: any) => t.date === "2026-11-02" && (t.accounts || []).includes(C._id));
+  assert.deepEqual([old.grossPnl, old.fees, old.pnl], [100, 6, 94]);
+
+  const c = (await s.json("/api/accounts")).data.find((x: any) => x._id === C._id);
+  assert.equal(c.pnl, 141); // 94 + 47, stats use net
+
+  // payout planner through the API
+  assert.equal(c.payout.active, false);
+  await s.json(`/api/accounts/${C._id}`, { rules: { minTradingDays: "3", payoutBuffer: "100" } }, "PATCH");
+  const p = (await s.json("/api/accounts")).data.find((x: any) => x._id === C._id).payout;
+  assert.deepEqual([p.active, p.daysCounted, p.daysNeeded, p.eligible, p.summary], [true, 2, 1, false, "Payout ke liye: 1 din aur"]);
+});

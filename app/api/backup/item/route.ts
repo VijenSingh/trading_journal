@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB, TradeModel, CertificateModel } from "@/lib/db";
+import { connectDB, TradeModel, CertificateModel, SetupModel } from "@/lib/db";
 import { blobToDataUrl } from "@/lib/blobFiles";
 
 // Backup, step 2: one blob at a time — a trade's screenshot or a certificate's file,
@@ -22,6 +22,10 @@ export async function GET(req: NextRequest) {
     } else if (kind === "certificate") {
       const c = await CertificateModel.findById(id).select("fileData filePath mimeType").lean<{ fileData?: string; filePath?: string; mimeType?: string }>();
       value = c?.filePath ? await blobToDataUrl(c.filePath, c.mimeType) : c?.fileData;
+    } else if (kind === "setup") {
+      const st = await SetupModel.findById(id).select("images").lean<{ images?: { data: string }[] }>();
+      if (!st) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      return NextResponse.json({ success: true, value: st.images || [] });
     } else {
       return NextResponse.json({ success: false, error: "Invalid kind" }, { status: 400 });
     }

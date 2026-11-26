@@ -3,7 +3,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { Button, Label } from "@/components/ui";
 import { cn, formatCurrency, formatPnl } from "@/lib/utils";
-import { AccountRules, EMPTY_RULES, RuleCheck } from "@/lib/accountRules";
+import { AccountRules, EMPTY_RULES, RuleCheck, hasPayoutRules } from "@/lib/accountRules";
 import type { AccountStats } from "@/lib/types";
 
 const barTone = (pct: number) => (pct >= 100 ? "bg-red" : pct >= 80 ? "bg-amber" : "bg-green");
@@ -24,7 +24,7 @@ export function Meter({ label, pct, left, right }: { label: string; pct: number;
 }
 
 export function hasRules(r?: AccountRules) {
-  return !!r && (r.drawdownType === "eod_trailing" || r.dailyLossLimit > 0 || r.profitTarget > 0 || r.consistencyPct > 0);
+  return !!r && (r.drawdownType === "eod_trailing" || r.dailyLossLimit > 0 || r.profitTarget > 0 || r.consistencyPct > 0 || hasPayoutRules(r));
 }
 
 // Meters for every rule set on the account.
@@ -55,6 +55,19 @@ export function RuleMeters({ a }: { a: AccountStats }) {
           <div className="text-[10px] text-ink-500 font-mono mt-0.5">{c.targetProgressPct.toFixed(0)}% of {formatCurrency(r.profitTarget)}</div>
         </div>
       )}
+      {a.payout?.active && (
+        <div className="sm:col-span-2 text-[11px] p-2.5 rounded-lg border border-black/[0.05] bg-bg-700">
+          <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-1">
+            Payout {a.payout.cycleStart ? `(last payout ${a.payout.cycleStart} ke baad)` : "(pehla payout)"}
+          </div>
+          <div className={a.payout.eligible ? "text-green font-semibold" : "text-ink-200"}>{a.payout.summary}</div>
+          <div className="text-[10px] text-ink-500 font-mono mt-0.5">
+            {r.minTradingDays > 0 && `days ${a.payout.daysCounted}/${r.minTradingDays}${r.minDayProfit > 0 ? ` (≥ ${formatCurrency(r.minDayProfit)})` : ""} · `}
+            cycle profit {formatPnl(a.payout.cycleProfit)}
+            {r.payoutBuffer > 0 && ` · buffer ${formatCurrency(a.size + r.payoutBuffer)} tak`}
+          </div>
+        </div>
+      )}
       {r.consistencyPct > 0 && (
         <div className="text-[11px]">
           <div className="text-[10px] text-ink-400 uppercase tracking-widest mb-0.5">Consistency ({r.consistencyPct}%)</div>
@@ -79,6 +92,9 @@ export function RulesModal({ a, onClose, onSaved }: { a: AccountStats; onClose: 
     dailyLossLimit: r.dailyLossLimit ? String(r.dailyLossLimit) : "",
     profitTarget: r.profitTarget ? String(r.profitTarget) : "",
     consistencyPct: r.consistencyPct ? String(r.consistencyPct) : "",
+    minTradingDays: r.minTradingDays ? String(r.minTradingDays) : "",
+    minDayProfit: r.minDayProfit ? String(r.minDayProfit) : "",
+    payoutBuffer: r.payoutBuffer ? String(r.payoutBuffer) : "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -126,6 +142,10 @@ export function RulesModal({ a, onClose, onSaved }: { a: AccountStats; onClose: 
           {num("dailyLossLimit", "Daily loss limit ($)", "e.g. 1000")}
           {num("profitTarget", "Profit target ($)", "e.g. 3000", "Evaluation pass ke liye")}
           {num("consistencyPct", "Consistency (%)", "e.g. 50", "Best day ≤ total profit ka itna %")}
+          <div className="col-span-2 text-[10px] text-ink-400 uppercase tracking-widest mt-2">Payout rules (funded account)</div>
+          {num("minTradingDays", "Min trading days", "e.g. 5", "Payout se pehle kitne din chahiye")}
+          {num("minDayProfit", "Din gina jaye agar profit ≥ ($)", "0 = har trading day", "Kuch firms sirf profitable din ginti hain")}
+          {num("payoutBuffer", "Buffer ($)", "e.g. 2100", "Balance ≥ size + buffer hona chahiye")}
         </div>
         <div className="flex gap-3 mt-5">
           <Button variant="primary" className="flex-1 justify-center" loading={saving} onClick={save}>Save Rules</Button>

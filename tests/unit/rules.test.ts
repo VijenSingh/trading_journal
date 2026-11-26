@@ -47,7 +47,8 @@ test("rules input validation", () => {
   assert.equal(sanitizeRules({ drawdownType: "eod_trailing", maxDrawdown: "" }), null);
   assert.equal(sanitizeRules({ consistencyPct: 120 }), null);
   assert.deepEqual(sanitizeRules({ drawdownType: "eod_trailing", maxDrawdown: "2000", lockAt: "" }),
-    { drawdownType: "eod_trailing", maxDrawdown: 2000, lockAt: null, dailyLossLimit: 0, profitTarget: 0, consistencyPct: 0 });
+    { drawdownType: "eod_trailing", maxDrawdown: 2000, lockAt: null, dailyLossLimit: 0, profitTarget: 0, consistencyPct: 0,
+      minTradingDays: 0, minDayProfit: 0, payoutBuffer: 0 });
 });
 
 test("account stats: balance, drawdown, payouts", () => {
