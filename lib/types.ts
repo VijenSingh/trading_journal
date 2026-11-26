@@ -30,6 +30,7 @@ export interface Trade {
   hasScreenshot?: boolean;
   propFirm?: string;
   accounts?: string[]; // account ids this trade ran on (copier); pnl is per account
+  setupChecks?: { done: number; total: number } | null; // playbook checklist ticks
   createdAt?: string;
   updatedAt?: string;
 }

@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import {
   connectDB, TradeModel, PropFirmModel, DailyMistakeModel,
-  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel, AccountModel,
+  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel, AccountModel, SetupModel,
 } from "@/lib/db";
 
 // Backup, step 1: every collection, but without the big base64 blobs (trade screenshots,
@@ -14,7 +14,7 @@ import {
 export async function GET() {
   try {
     await connectDB();
-    const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates, accounts] = await Promise.all([
+    const [trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates, accounts, setups] = await Promise.all([
       TradeModel.aggregate([
         { $addFields: { _hasScreenshot: { $or: [
           { $gt: [{ $strLenBytes: { $ifNull: ["$screenshot", ""] } }, 0] },
@@ -31,13 +31,14 @@ export async function GET() {
       PairModel.find({}).lean(),
       CertificateModel.find({}).select("-fileData -filePath -fileSize").lean(),
       AccountModel.find({}).lean(),
+      SetupModel.find({}).select("-images").lean(),
     ]);
     return NextResponse.json({
       success: true,
       version: 1,
       partial: true, // blobs still to be fetched from /api/backup/item
       exportedAt: new Date().toISOString(),
-      data: { trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates, accounts },
+      data: { trades, propFirms, dailyMistakes, goals, transactions, accountTxns, rules, pairs, certificates, accounts, setups },
     });
   } catch (e) {
     console.error("GET /api/backup:", e);

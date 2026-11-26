@@ -101,6 +101,18 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
   };
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [preTradeRules, setPreTradeRules] = useState<{ _id: string; text: string }[]>([]);
+  // Playbook: setups offered as strategies; the chosen setup's checklist is ticked per trade.
+  const [playbook, setPlaybook] = useState<{ name: string; checklist: string[] }[]>([]);
+  const [setupTicks, setSetupTicks] = useState<Set<number>>(new Set());
+  const [setupTouched, setSetupTouched] = useState(false);
+  useEffect(() => {
+    const load = () => fetch("/api/playbook", { cache: "no-store" }).then(r => r.json())
+      .then(j => { if (j.success) setPlaybook(j.data.map((s: { name: string; checklist: string[] }) => ({ name: s.name, checklist: s.checklist }))); })
+      .catch(() => {});
+    load();
+    window.addEventListener("playbook-changed", load);
+    return () => window.removeEventListener("playbook-changed", load);
+  }, []);
   const [checkedRules, setCheckedRules] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -220,6 +232,8 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.entry, form.exit, form.lot, form.pair, form.customPair, form.type, pnlManualOverride]);
+
+  const activeSetup = playbook.find(p => p.name === form.strategy) || null;
 
   // ── Fees: contracts × the commission of the ticked account(s), until edited by hand ──
   const [feesManual, setFeesManual] = useState(!!initialTrade?.fees);
@@ -354,6 +368,10 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         lesson: form.lesson,
         rulesFollowed: form.rulesFollowed,
         tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
+        // ticks for a playbook setup; an untouched edit keeps what was saved
+        setupChecks: activeSetup && activeSetup.checklist.length && (setupTouched || !isEdit)
+          ? { done: setupTicks.size, total: activeSetup.checklist.length }
+          : isEdit && !setupTouched && activeSetup ? (initialTrade?.setupChecks ?? null) : null,
         screenshot,
         propFirm: form.propFirm,
         // Drop ticks of another firm's accounts (firm changed); if the list could not load, keep them as they are.
@@ -387,6 +405,8 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
         setAccountsTouched(false);
         setRiskManual(false);
         setFeesManual(false);
+        setSetupTicks(new Set());
+        setSetupTouched(false);
         setTimeout(() => router.push("/journal"), 800);
       }
       router.refresh();
@@ -408,6 +428,8 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     setAccountsTouched(false);
     setRiskManual(false);
     setFeesManual(false);
+    setSetupTicks(new Set());
+    setSetupTouched(false);
   };
 
   const toggleMistake = (id: number) => {
@@ -731,12 +753,45 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
             </span>
           </FormGroup>
           <FormGroup label="Strategy Used">
-            <select className="inp" value={form.strategy} onChange={e => set("strategy", e.target.value)}>
+            <select className="inp" value={form.strategy} onChange={e => { set("strategy", e.target.value); setSetupTicks(new Set()); setSetupTouched(true); }}>
               <option value="">Select strategy...</option>
-              {STRATEGIES.map(s => <option key={s}>{s}</option>)}
+              {playbook.length > 0 && (
+                <optgroup label="Playbook">
+                  {playbook.map(s => <option key={s.name}>{s.name}</option>)}
+                </optgroup>
+              )}
+              <optgroup label="Others">
+                {STRATEGIES.filter(s => !playbook.some(p => p.name === s)).map(s => <option key={s}>{s}</option>)}
+                {form.strategy && !STRATEGIES.includes(form.strategy) && !playbook.some(p => p.name === form.strategy) && <option>{form.strategy}</option>}
+              </optgroup>
             </select>
           </FormGroup>
         </div>
+
+        {activeSetup && activeSetup.checklist.length > 0 && (
+          <div className="mt-4 p-3 rounded-xl bg-blue/[0.04] border border-blue/15">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-ink-300">📘 {activeSetup.name} — checklist</span>
+              <span className="text-[11px] font-mono text-ink-400">
+                {isEdit && !setupTouched && initialTrade?.setupChecks
+                  ? `saved ${initialTrade.setupChecks.done}/${initialTrade.setupChecks.total}`
+                  : `${setupTicks.size}/${activeSetup.checklist.length}`}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {activeSetup.checklist.map((rule, i) => {
+                const on = setupTicks.has(i);
+                return (
+                  <button key={i} type="button"
+                    onClick={() => { setSetupTouched(true); setSetupTicks(t => { const n = new Set(t); if (n.has(i)) n.delete(i); else n.add(i); return n; }); }}
+                    className={cn("text-left text-xs px-2.5 py-1.5 rounded-lg border", on ? "bg-green/8 border-green/25 text-ink-200" : "bg-bg-700 border-black/[0.06] text-ink-400")}>
+                    {on ? "✓ " : "○ "}{rule}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* P&L Preview Card */}
         {form.pnl && (

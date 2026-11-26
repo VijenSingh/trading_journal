@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import {
   connectDB, TradeModel, PropFirmModel, DailyMistakeModel,
-  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel, AccountModel,
+  GoalModel, TransactionModel, AccountTxnModel, RuleModel, PairModel, CertificateModel, AccountModel, SetupModel,
   RestoreChunkModel, RestoreSessionModel,
 } from "@/lib/db";
 import { deleteBlobs } from "@/lib/blobFiles";
@@ -19,7 +19,7 @@ import { deleteBlobs } from "@/lib/blobFiles";
 const MODELS: Record<string, mongoose.Model<any>> = {
   trades: TradeModel, propFirms: PropFirmModel, dailyMistakes: DailyMistakeModel,
   goals: GoalModel, transactions: TransactionModel, accountTxns: AccountTxnModel,
-  rules: RuleModel, pairs: PairModel, certificates: CertificateModel, accounts: AccountModel,
+  rules: RuleModel, pairs: PairModel, certificates: CertificateModel, accounts: AccountModel, setups: SetupModel,
 };
 
 const strip = (docs: unknown[]): Record<string, unknown>[] =>

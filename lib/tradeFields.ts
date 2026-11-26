@@ -3,7 +3,7 @@
 const TRADE_FIELDS = [
   "date", "time", "exitTime", "pair", "type", "lot", "entry", "sl", "target", "exit",
   "pnl", "grossPnl", "fees", "riskAmount", "pips", "rr", "strategy", "session", "mistakes", "noMistakesFlag",
-  "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm", "accounts",
+  "emotion", "reasoning", "lesson", "rulesFollowed", "tags", "screenshot", "propFirm", "accounts", "setupChecks",
 ] as const;
 
 export function pickTradeFields(body: unknown): Record<string, unknown> {
@@ -31,6 +31,13 @@ export function pickTradeFields(body: unknown): Record<string, unknown> {
       out.grossPnl = Math.round(g * 100) / 100;
       out.pnl = Math.round((g - Number(out.fees || 0)) * 100) / 100;
     }
+  }
+  // setupChecks: { done, total } with 0 ≤ done ≤ total ≤ 50, or null
+  if ("setupChecks" in out) {
+    const v = out.setupChecks as { done?: unknown; total?: unknown } | null;
+    const done = Number(v?.done), total = Number(v?.total);
+    out.setupChecks = v && Number.isInteger(done) && Number.isInteger(total) && done >= 0 && total > 0 && done <= total && total <= 50
+      ? { done, total } : null;
   }
   // accounts: unique account ids only
   if ("accounts" in out) {

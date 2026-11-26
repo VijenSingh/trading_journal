@@ -66,6 +66,8 @@ const TradeSchema = new mongoose.Schema(
     screenshot: { type: String, default: "" },     // legacy/fallback: base64 data URL kept in the DB
     screenshotPath: { type: String, default: "" }, // Vercel Blob pathname when the image lives in Blob
     propFirm: { type: String, default: "" },
+    // Playbook checklist for the trade's setup: how many of its rules were ticked.
+    setupChecks: { type: { done: Number, total: Number, _id: false }, default: null },
     // Accounts this trade ran on (trade copier). pnl is per account, so each one gets it.
     accounts: { type: [String], default: [] },
   },
@@ -251,6 +253,21 @@ export const GoalModel =
 
 export const TransactionModel =
   mongoose.models.Transaction || mongoose.model("Transaction", TransactionSchema);
+
+// ─── Playbook setup (a named trade setup with its checklist and examples) ───
+// Trades link to a setup through their strategy name.
+const SetupSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, unique: true },
+    description: { type: String, default: "" },
+    checklist: { type: [String], default: [] },
+    images: { type: [{ data: String, _id: false }], default: [] }, // data URLs, at most 3
+  },
+  { timestamps: true }
+);
+
+export const SetupModel =
+  mongoose.models.Setup || mongoose.model("Setup", SetupSchema);
 
 export const AccountModel =
   mongoose.models.Account || mongoose.model("Account", AccountSchema);

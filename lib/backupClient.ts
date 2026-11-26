@@ -27,15 +27,19 @@ export async function downloadFullBackup(onProgress: Progress) {
   onProgress("Data load ho raha hai…");
   const backup = await getJson("/api/backup");
   const { trades, certificates } = backup.data as { trades: any[]; certificates: any[] };
+  const setups: any[] = backup.data.setups || [];
 
-  const jobs: { kind: "trade" | "certificate"; doc: any }[] = [
+  const jobs: { kind: "trade" | "certificate" | "setup"; doc: any }[] = [
     ...trades.filter(t => t._hasScreenshot).map(doc => ({ kind: "trade" as const, doc })),
     ...certificates.map(doc => ({ kind: "certificate" as const, doc })),
+    ...setups.map(doc => ({ kind: "setup" as const, doc })),
   ];
   let done = 0;
   await mapLimit(jobs, PARALLEL, async ({ kind, doc }) => {
     const { value } = await getJson(`/api/backup/item?kind=${kind}&id=${doc._id}`);
-    if (kind === "trade") doc.screenshot = value; else doc.fileData = value;
+    if (kind === "trade") doc.screenshot = value;
+    else if (kind === "setup") doc.images = value;
+    else doc.fileData = value;
     done++;
     onProgress(`Files download ho rahi hain… ${done}/${jobs.length}`);
   });
@@ -46,7 +50,7 @@ export async function downloadFullBackup(onProgress: Progress) {
   return backup;
 }
 
-const COLLECTIONS = ["trades", "propFirms", "dailyMistakes", "goals", "transactions", "accountTxns", "rules", "pairs", "certificates", "accounts"] as const;
+const COLLECTIONS = ["trades", "propFirms", "dailyMistakes", "goals", "transactions", "accountTxns", "rules", "pairs", "certificates", "accounts", "setups"] as const;
 
 export async function restoreFullBackup(backup: any, onProgress: Progress) {
   const data = backup?.data;
