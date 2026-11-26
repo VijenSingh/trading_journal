@@ -1,4 +1,6 @@
-const CACHE = "tradermind-v2";
+const CACHE = "tradermind-v3";
+// Holds one image shared to the app (Android "Share → TraderMind") until /trade/quick reads it.
+const SHARE_CACHE = "tradermind-share";
 const PRECACHE_URLS = ["/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -8,7 +10,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SHARE_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -19,6 +21,24 @@ self.addEventListener("activate", (e) => {
 // being masked by a stale cached copy until the cache name is bumped.)
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
+
+  // Web Share Target: keep the shared screenshot, then open the quick-trade page.
+  if (url.pathname === "/share-target" && e.request.method === "POST") {
+    e.respondWith((async () => {
+      try {
+        const form = await e.request.formData();
+        const file = form.get("screenshot");
+        if (file && typeof file !== "string" && file.type.startsWith("image/")) {
+          const cache = await caches.open(SHARE_CACHE);
+          await cache.put("/shared-screenshot", new Response(file, { headers: { "Content-Type": file.type } }));
+          return Response.redirect("/trade/quick?shared=1", 303);
+        }
+      } catch { /* fall through */ }
+      return Response.redirect("/trade/quick", 303);
+    })());
+    return;
+  }
+
   if (url.pathname.startsWith("/api/")) return;
   if (e.request.method !== "GET") return;
 
