@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Card, Button, Label } from "@/components/ui";
-import { PAIRS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, PIP_VALUES, Trade } from "@/lib/types";
+import { PAIRS, PAIR_GROUPS, STRATEGIES, SESSIONS, EMOTIONS, MISTAKES, Trade } from "@/lib/types";
+import { calcPnl, getInstrument, isFuture } from "@/lib/instruments";
 import { getToday, getNow, cn, compressImage } from "@/lib/utils";
 import { invalidateTradeData } from "@/lib/useTradeData";
 import { getActiveFirm } from "@/lib/activeFirm";
@@ -183,41 +184,11 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     const lot = parseFloat(form.lot);
     const pair = form.pair === "Other" ? form.customPair : form.pair;
 
-    if (!entry || !exit || !lot || !pair) {
-      setPnlAutoCalc(null);
-      return;
-    }
-
-    // Only pairs with a known contract size can be auto-calculated. Guessing for a custom
-    // pair (an index, a stock, "XAUUSD" typed by hand) produced absurd values; the user
-    // enters P&L manually for those instead.
-    const pipVal = PIP_VALUES[pair];
-    if (pipVal === undefined) {
-      setPnlAutoCalc(null);
-      return;
-    }
-
-    // Price difference per unit
-    const diff = form.type === "BUY" ? (exit - entry) : (entry - exit);
-
-    let autoP: number;
-    if (pair === "XAUUSD (Gold)") {
-      // 1 lot = 100 oz; a pip is $0.10, worth pipVal ($10) per lot → $100 per $1 move per lot.
-      autoP = (diff / 0.1) * pipVal * lot;
-    } else if (["NASDAQ", "US30", "SP500"].includes(pair)) {
-      // Indices: diff × lot × 1
-      autoP = diff * lot;
-    } else if (["BTCUSD", "ETHUSD"].includes(pair)) {
-      autoP = diff * lot;
-    } else {
-      // Forex: pips × pip_value × lot
-      const isJPY = pair.includes("JPY");
-      const pipsActual = isJPY ? Math.abs(diff) * 100 : Math.abs(diff) * 10000;
-      autoP = (diff >= 0 ? 1 : -1) * pipsActual * pipVal * lot;
-    }
-
-    autoP = parseFloat(autoP.toFixed(2));
+    // Only instruments with a known contract size are auto-calculated (lib/instruments).
+    // Custom pairs get no guess — the trader enters P&L by hand.
+    const autoP = pair ? calcPnl(pair, form.type, entry, exit, lot) : null;
     setPnlAutoCalc(autoP);
+    if (autoP === null) return;
 
     // Only set form pnl if user hasn't manually overridden
     if (!pnlManualOverride) {
@@ -253,7 +224,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
     if (!getPair()) e.pair = "Pair select karo";
     if (!form.propFirm) e.propFirm = "Prop firm select karo";
     if (!form.session) e.session = "Session select karo";
-    if (!form.lot || parseFloat(form.lot) <= 0) e.lot = "Lot size enter karo";
+    if (!form.lot || parseFloat(form.lot) <= 0) e.lot = isFuture(getPair()) ? "Contracts enter karo" : "Lot size enter karo";
     if (!form.entry || parseFloat(form.entry) <= 0) e.entry = "Entry price enter karo";
     if (!form.exit || parseFloat(form.exit) <= 0) e.exit = "Exit price enter karo";
     if (!form.pnl) e.pnl = "P&L enter karo";
@@ -449,12 +420,25 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
           <FormGroup label="Pair / Instrument" required>
             <select className={inp(!!errors.pair)} value={form.pair} onChange={e => handlePairChange(e.target.value)}>
               <option value="">Select pair...</option>
-              {PAIRS.filter(p => p !== "Other").map(p => <option key={p}>{p}</option>)}
-              {customPairs.filter(p => !PAIRS.includes(p)).map(p => <option key={p}>{p}</option>)}
+              {PAIR_GROUPS.map(g => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.pairs.map(p => <option key={p}>{p}</option>)}
+                </optgroup>
+              ))}
+              {customPairs.some(p => !PAIRS.includes(p)) && (
+                <optgroup label="Custom (P&L manual)">
+                  {customPairs.filter(p => !PAIRS.includes(p)).map(p => <option key={p}>{p}</option>)}
+                </optgroup>
+              )}
               <option value="__new__">+ Naya pair add karo...</option>
               <option value="Other">Other</option>
             </select>
             {errors.pair && <span className="text-[11px] text-red">{errors.pair}</span>}
+            {!errors.pair && getPair() && (
+              <span className="text-[10px] text-ink-500">
+                {getInstrument(getPair())?.note ?? "Custom pair — P&L auto-calculate nahi hoga, khud daalo"}
+              </span>
+            )}
           </FormGroup>
           {form.pair === "Other" && (
             <FormGroup label="Custom Pair" required>
@@ -476,7 +460,7 @@ export default function TradeForm({ tradeId, initialTrade }: { tradeId?: string;
               ))}
             </div>
           </FormGroup>
-          <FormGroup label="Lot Size" required>
+          <FormGroup label={isFuture(getPair()) ? "Contracts" : "Lot Size"} required>
             <input type="number" className={inp(!!errors.lot)} placeholder="e.g. 2.0" step="0.01" min="0.01"
               value={form.lot} onChange={e => set("lot", e.target.value)} />
             {errors.lot && <span className="text-[11px] text-red">{errors.lot}</span>}
